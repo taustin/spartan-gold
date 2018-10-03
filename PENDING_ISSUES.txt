@@ -11,3 +11,8 @@ ISSUES (named by MMDD-##)
 
 1001-05 -- Handle syncing of missing blocks in receiveBlock.
 
+
+1003-01 -- Mining reward should go to a new, additional public key.
+
+1003-02 -- Add "wallet" concept to Client.
+
