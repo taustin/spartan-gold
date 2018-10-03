@@ -13,6 +13,8 @@ const START_MINING = "START_MINING";
 const POST_TRANSACTION = "POST_TRANSACTION";
 const BALANCE = "GET_BALANCE";
 
+// Miners are clients, but they also mine blocks
+// looking for "proofs".
 module.exports = class Miner extends Client {
   constructor(broadcast, keys, startingBlock) {
     super(broadcast, keys);
@@ -22,7 +24,7 @@ module.exports = class Miner extends Client {
     this.startNewSearch();
   }
 
-  // Starts listeners.
+  // Starts listeners, and begin mining.
   initialize() {
     this.on(START_MINING, this.findProof);
     this.on(PROOF_FOUND, (o) => {
@@ -48,6 +50,7 @@ module.exports = class Miner extends Client {
     this.emit(START_MINING);
   }
 
+  // Sets up the miner to start searching for a new block
   startNewSearch() {
     let b = new Block(this.currentBlock);
     this.previousBlocks[b.prevBlockHash] = this.currentBlock;
@@ -59,6 +62,11 @@ module.exports = class Miner extends Client {
     this.currentBlock.proof = 0;
   }
 
+  // Looks for a "proof".  It breaks after some time to listen
+  // for messages.  (We need to do this since JS does not support
+  // concurrency).  The 'oneAndDone' field is used for testing only;
+  // It prevents the findProof method from looking for the proof
+  // again after the first attempt.
   findProof(oneAndDone) {
     let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
     while (this.currentBlock.proof < pausePoint) {
@@ -76,17 +84,23 @@ module.exports = class Miner extends Client {
     }
   }
 
+  // Broadcast the block, with a valid proof included.
   announceProof() {
     let msg = {details: {block: this.currentBlock.serialize()}};
     this.signMessage(msg);
     this.broadcast(PROOF_FOUND, msg);
   }
 
+  // Returns true if the block's proof is valid.
   isValidBlock(b) {
     if (!b.verifyProof()) return false;
     // FIXME: Validate all transactions.
   }
 
+  // Receives a block from another miner.
+  // If it is valid, the block will be stored.
+  // If it is also a longer chain, the miner will
+  // accept it and replace the currentBlock.
   receiveBlock(s) {
     let b = Block.deserialize(s);
     if (!this.isValidBlock(b)) {
@@ -99,7 +113,6 @@ module.exports = class Miner extends Client {
     }
     // We switch over to the new chain only if it is better.
     if (b.chainLength >= this.currentBlock.chainLength) {
-      // FIXME: Need to sync up missing transactions
       // FIXME: Need to sync up missing transactions
       this.currentBlock = b;
       this.startNewSearch();
@@ -122,17 +135,9 @@ module.exports = class Miner extends Client {
     return true;
   }
 
+  // Returns the balance of coins for the specified ID.
   getBalance(id) {
     return this.currentBlock.balance(id);
-  }
-
-  replayBlockchain(newBlock) {
-    // FIXME: Implement
-    // 1) Find a common ancestor
-    //      Recover any missing blocks needed to do so.
-    // 2) Role forward from common ancestor, replaying all transactions.
-    // 3) Gather a list of still pending transactions return them.
-    return {};
   }
 }
 

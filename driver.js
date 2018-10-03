@@ -5,6 +5,8 @@ let Miner = require('./miner.js');
 let utils = require('./utils.js');
 let fakeNet = require('./fakeNet.js');
 
+
+// Creating a genesis block and miners.
 const GENESIS_BLOCK = new Block();
 
 let ak = utils.generateKeypair();
@@ -23,6 +25,7 @@ fakeNet.registerMiner(alice);
 fakeNet.registerMiner(bob);
 fakeNet.registerMiner(charlie);
 
+// Makes transactions for transferring money between the three parties.
 function transfer(sender, a, b, c) {
   let output = {};
   output[alice.keys.id] = a;
@@ -30,6 +33,8 @@ function transfer(sender, a, b, c) {
   output[charlie.keys.id] = c;
   sender.postTransaction(output);
 }
+
+
 
 console.log("Initial balances");
 console.log(alice.currentBlock.utxo);
@@ -42,6 +47,7 @@ charlie.initialize();
 
 transfer(alice, 100, 20, 12);
 
+// Print out the final balances after it has been running for some time.
 setTimeout(() => {
   console.log(alice.currentBlock.utxo);
   console.log(bob.currentBlock.utxo);
