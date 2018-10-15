@@ -1,5 +1,5 @@
 let assert = require('assert');
-let crypto = require('crypto');
+// let crypto = require('crypto');
 
 let Block = require('./block.js');
 let Client = require('./client.js');
@@ -22,7 +22,7 @@ describe('utils', function() {
       assert.equal(work, 0);
       work = utils.hashWork("fea890");
       assert.equal(work, 0);
-    })
+    });
     it('should recognize each leading zero as 4 bits of work', function() {
       let work = utils.hashWork("0AFE890");
       assert.equal(work, 4);

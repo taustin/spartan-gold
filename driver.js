@@ -1,5 +1,5 @@
 let Block = require('./block.js');
-let Client = require('./client.js');
+// let Client = require('./client.js');
 let Miner = require('./miner.js');
 
 let utils = require('./utils.js');
