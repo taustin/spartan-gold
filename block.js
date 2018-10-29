@@ -1,8 +1,13 @@
 let utils = require('./utils.js');
 
+
 const NUM_LEADING_ZEROES = 20;
 
 const COINBASE_AMT_ALLOWED = 1;
+
+const BALANCE = "GET_BALANCE";
+
+let unspentChange = 0;
 
 module.exports = class Block {
 
@@ -66,16 +71,40 @@ module.exports = class Block {
     return !!this.coinbase;
   }
 
-  // Given the transaction details, this method updates
-  // the UTXO values.
-  updateUTXO(details) {
-    // All coins are implicitly spent
-    if (details.input) delete this.utxo[details.input];
+  // Given the transaction details & the minerID,
+  //this method updates the UTXO values.
+  updateUTXO(details, minerId) {
+    //Sum amount transferred
+    let sumAmtTransfer = 0;
     for(let key in details.output) {
+      sumAmtTransfer += details.output[key]
+    }
+
+    //Iterating throught the IDs in the transaction
+    for(let key in details.output) {
+
       let payment = details.output[key];
       this.utxo[key] = this.utxo[key] || 0;
+
+     //details.input is the id of the sender
+       if(key == details.input){
+
+        unspentChange = (this.utxo[details.input] - sumAmtTransfer);
+
+        delete this.utxo[details.input];
+
+      }
+      this.utxo[key] = this.utxo[key] || 0;
+      if(key == minerId){
+          //Assignining Unspent Change to the Miner
+          this.utxo[key] += unspentChange;
+
+      }
       this.utxo[key] += payment;
+
+
     }
+
   }
 
   // Returns true if the transaction is valid.
@@ -109,18 +138,22 @@ module.exports = class Block {
   // This accepts a new transaction if it is valid.
   addTransaction(trans) {
     let tid = utils.hash(JSON.stringify(trans));
+    let minerId = ""
+    let utxoBeforeTx = {}
+    let senderId = trans.txDetails.input
     if (!this.legitTransaction(trans)) {
       throw new Error(`Transaction ${tid} is invalid.`);
     }
     this.transactions[tid] = trans;
-    this.updateUTXO(trans.txDetails);
     if (!trans.txDetails.input) {
       this.coinbase = trans;
+      minerId = trans.txDetails.output
+      for(let key in trans.txDetails.output){
+        minerId = key
+      }
+
     }
+    this.updateUTXO(trans.txDetails, minerId);
   }
 
 }
-
-
-
-

@@ -9,21 +9,33 @@ let fakeNet = require('./fakeNet.js');
 // Creating a genesis block and miners.
 const GENESIS_BLOCK = new Block();
 
+//Generating keypairs for Clients - Alice, Bob & Charlie
+// Miners - Mike & Mini
 let ak = utils.generateKeypair();
 let bk = utils.generateKeypair();
 let ck = utils.generateKeypair();
+//Add miners
+let mk = utils.generateKeypair();
+let mn = utils.generateKeypair();
 
-GENESIS_BLOCK.utxo[utils.calcId(ak.public)] = 132;
+
+GENESIS_BLOCK.utxo[utils.calcId(ak.public)] = 133;
 GENESIS_BLOCK.utxo[utils.calcId(bk.public)] = 49;
 GENESIS_BLOCK.utxo[utils.calcId(ck.public)] = 16;
+GENESIS_BLOCK.utxo[utils.calcId(mk.public)] = 4;
+GENESIS_BLOCK.utxo[utils.calcId(mn.public)] = 12;
 
-let alice = new Miner(fakeNet.broadcast, ak, GENESIS_BLOCK);
-let bob = new Miner(fakeNet.broadcast, bk, GENESIS_BLOCK);
-let charlie = new Miner(fakeNet.broadcast, ck, GENESIS_BLOCK);
 
-fakeNet.registerMiner(alice);
-fakeNet.registerMiner(bob);
-fakeNet.registerMiner(charlie);
+let alice = new Client(fakeNet.broadcast, ak);
+let bob = new Client(fakeNet.broadcast, bk);
+let charlie = new Client(fakeNet.broadcast, ck);
+let mike = new Miner(fakeNet.broadcast, mk, GENESIS_BLOCK);
+let mini = new Miner(fakeNet.broadcast, mn, GENESIS_BLOCK);
+
+
+fakeNet.registerMiner(mike);
+fakeNet.registerMiner(mini);
+
 
 // Makes transactions for transferring money between the three parties.
 function transfer(sender, a, b, c) {
@@ -35,25 +47,23 @@ function transfer(sender, a, b, c) {
 }
 
 
-
 console.log("Initial balances");
-console.log(alice.currentBlock.utxo);
+console.log(mike.currentBlock.utxo)
+console.log(mini.currentBlock.utxo)
+
 
 console.log("Beginning to mine");
 
-alice.initialize();
-bob.initialize();
-charlie.initialize();
+mike.initialize()
+mini.initialize()
+
 
 transfer(alice, 100, 20, 12);
 
+
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
-  console.log(alice.currentBlock.utxo);
-  console.log(bob.currentBlock.utxo);
-  console.log(charlie.currentBlock.utxo);
+  console.log(mike.currentBlock.utxo)
+  console.log(mini.currentBlock.utxo)
+
 }, 5000);
-
-
-
-
