@@ -1,15 +1,14 @@
+let EventEmitter = require('events');
 let utils = require('./utils.js');
-
 
 const NUM_LEADING_ZEROES = 20;
 
 const COINBASE_AMT_ALLOWED = 1;
 
-const BALANCE = "GET_BALANCE";
+const UNSPENT_CHANGE = "UNSPENT_CHANGE";
 
-let unspentChange = 0;
 
-module.exports = class Block {
+module.exports = class Block extends EventEmitter{
 
   // Takes a string and produces a Block object
   static deserialize(str) {
@@ -26,6 +25,7 @@ module.exports = class Block {
   }
 
   constructor(prevBlock, workRequired, transactions) {
+    super();
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.workRequired = workRequired || NUM_LEADING_ZEROES;
     this.transactions = transactions || {};
@@ -74,37 +74,38 @@ module.exports = class Block {
   // Given the transaction details & the minerID,
   //this method updates the UTXO values.
   updateUTXO(details, minerId) {
+    let unspentChange = 0;
     //Sum amount transferred
     let sumAmtTransfer = 0;
+
     for(let key in details.output) {
       sumAmtTransfer += details.output[key]
     }
 
     //Iterating throught the IDs in the transaction
     for(let key in details.output) {
-
       let payment = details.output[key];
       this.utxo[key] = this.utxo[key] || 0;
 
      //details.input is the id of the sender
-       if(key == details.input){
-
-        unspentChange = (this.utxo[details.input] - sumAmtTransfer);
-
+       if(key === details.input){
+        let unspentChange = (this.utxo[details.input] - sumAmtTransfer);
+        //broadcasting the unspent change in order to assign it to the miner later
+        this.emit(UNSPENT_CHANGE, unspentChange)
         delete this.utxo[details.input];
 
       }
       this.utxo[key] = this.utxo[key] || 0;
-      if(key == minerId){
-          //Assignining Unspent Change to the Miner
-          this.utxo[key] += unspentChange;
 
+      if(key === minerId){
+          //Assignining Unspent Change to the Miner
+          this.on(UNSPENT_CHANGE, (o) =>{
+            this.utxo[key] += o;
+            return;
+          });
       }
       this.utxo[key] += payment;
-
-
     }
-
   }
 
   // Returns true if the transaction is valid.
@@ -137,23 +138,24 @@ module.exports = class Block {
 
   // This accepts a new transaction if it is valid.
   addTransaction(trans) {
-    let tid = utils.hash(JSON.stringify(trans));
     let minerId = ""
-    let utxoBeforeTx = {}
-    let senderId = trans.txDetails.input
+    let tid = utils.hash(JSON.stringify(trans));
     if (!this.legitTransaction(trans)) {
       throw new Error(`Transaction ${tid} is invalid.`);
     }
     this.transactions[tid] = trans;
+
+    // If no "input" then it's a coinbase transaction
     if (!trans.txDetails.input) {
       this.coinbase = trans;
-      minerId = trans.txDetails.output
+      // Extract minerId from the transaction
+      //Example - { output: { 'PZwJ7sYxuMsGL7aqP6tITPezM4aqdm040anJAlw4nMk=': 1 } }
       for(let key in trans.txDetails.output){
         minerId = key
       }
-
     }
     this.updateUTXO(trans.txDetails, minerId);
+
   }
 
 }
