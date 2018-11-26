@@ -71,9 +71,28 @@ module.exports = class Block extends EventEmitter{
     return !!this.coinbase;
   }
 
+  //Calculates and broadcasts the unspent change
+  calculateUnspentChange(input, sumAmtTransfer) {
+    let unspentChange = (input - sumAmtTransfer);
+    this.emit(UNSPENT_CHANGE, unspentChange);
+    return;
+  }
+
+  //Updates the miner with the unspent change
+  updateMinerWithUnspentChange(minerId){
+    //Assignining Unspent Change to the Miner
+    this.on(UNSPENT_CHANGE, (o) =>{
+      if(this.utxo[minerId]){
+        this.utxo[minerId] += o;
+        return;
+      }
+
+    });
+  }
+
   // Given the transaction details & the minerID,
   //this method updates the UTXO values.
-  updateUTXO(details, minerId) {
+  updateUTXO(details) {
     let unspentChange = 0;
     //Sum amount transferred
     let sumAmtTransfer = 0;
@@ -89,21 +108,12 @@ module.exports = class Block extends EventEmitter{
 
      //details.input is the id of the sender
        if(key === details.input){
-        let unspentChange = (this.utxo[details.input] - sumAmtTransfer);
-        //broadcasting the unspent change in order to assign it to the miner later
-        this.emit(UNSPENT_CHANGE, unspentChange)
+        //Calculate unspent change
+        this.calculateUnspentChange(this.utxo[details.input], sumAmtTransfer)
         delete this.utxo[details.input];
 
       }
       this.utxo[key] = this.utxo[key] || 0;
-
-      if(key === minerId){
-          //Assignining Unspent Change to the Miner
-          this.on(UNSPENT_CHANGE, (o) =>{
-            this.utxo[key] += o;
-            return;
-          });
-      }
       this.utxo[key] += payment;
     }
   }
@@ -137,8 +147,7 @@ module.exports = class Block extends EventEmitter{
   }
 
   // This accepts a new transaction if it is valid.
-  addTransaction(trans) {
-    let minerId = ""
+  addTransaction(trans, minerId) {
     let tid = utils.hash(JSON.stringify(trans));
     if (!this.legitTransaction(trans)) {
       throw new Error(`Transaction ${tid} is invalid.`);
@@ -148,13 +157,12 @@ module.exports = class Block extends EventEmitter{
     // If no "input" then it's a coinbase transaction
     if (!trans.txDetails.input) {
       this.coinbase = trans;
-      // Extract minerId from the transaction
-      //Example - { output: { 'PZwJ7sYxuMsGL7aqP6tITPezM4aqdm040anJAlw4nMk=': 1 } }
-      for(let key in trans.txDetails.output){
-        minerId = key
-      }
     }
-    this.updateUTXO(trans.txDetails, minerId);
+
+    if(minerId) {
+      this.updateMinerWithUnspentChange(minerId);
+    }
+    this.updateUTXO(trans.txDetails);
 
   }
 
