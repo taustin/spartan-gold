@@ -73,7 +73,6 @@ module.exports = class Miner extends Client {
   // again after the first attempt.
   findProof(oneAndDone) {
     let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
-    console.log(this.keys.id)
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.verifyProof()) {
         this.announceProof();
@@ -92,8 +91,6 @@ module.exports = class Miner extends Client {
   // Broadcast the block, with a valid proof included.
   announceProof() {
     let msg = {details: {block: this.currentBlock.serialize()}};
-    console.log("announcing proof")
-    console.log(msg)
     this.signMessage(msg);
     this.broadcast(PROOF_FOUND, msg);
   }
