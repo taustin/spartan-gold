@@ -169,7 +169,6 @@ describe('Block', function() {
   });
 
   describe('#addTransaction', function() {
-    debugger;
     let b = new Block(genesisBlock);
     it("should reject invalid transactions", function() {
       let output = {};
@@ -253,17 +252,16 @@ describe('Block', function() {
     let b = new Block(genesisBlock, 2);
     let details = { output: {}};
     details.input = alice;
-    details.output[bob] = 100;
-    details.output[charlie] = 32;
+    details.output[bob] = 20;
+    details.output[charlie] = 12;
+    details.output[alice] = 100;
     b.updateUTXO(details);
     it("should update UTXO amounts with transaction details", function() {
-      assert.equal(b.balance(bob), genesisBlock.balance(bob)+100);
-      assert.equal(b.balance(charlie), genesisBlock.balance(charlie)+32);
+      assert.equal(b.balance(bob), genesisBlock.balance(bob)+20);
+      assert.equal(b.balance(charlie), genesisBlock.balance(charlie)+12);
     });
-    it("should delete tokens from sender", function() {
-      //Modifications
-      //assert.equal(b.balance(alice), 0);
-      assert.equal(b.balance(alice), 133);
+    it("should update the UTXO for the sender", function() {
+      assert.equal(b.balance(alice), genesisBlock.balance(alice)-(20+12) - b.calculateUnspentChange(genesisBlock.balance(alice), (100+20+12)));
     });
   });
 

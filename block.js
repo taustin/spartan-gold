@@ -7,7 +7,6 @@ const COINBASE_AMT_ALLOWED = 1;
 
 const UNSPENT_CHANGE = "UNSPENT_CHANGE";
 
-
 module.exports = class Block extends EventEmitter{
 
   // Takes a string and produces a Block object
@@ -75,7 +74,7 @@ module.exports = class Block extends EventEmitter{
   calculateUnspentChange(input, sumAmtTransfer) {
     let unspentChange = (input - sumAmtTransfer);
     this.emit(UNSPENT_CHANGE, unspentChange);
-    return;
+    return unspentChange;
   }
 
   //Updates the miner with the unspent change
@@ -86,7 +85,6 @@ module.exports = class Block extends EventEmitter{
         this.utxo[minerId] += o;
         return;
       }
-
     });
   }
 
@@ -100,18 +98,15 @@ module.exports = class Block extends EventEmitter{
     for(let key in details.output) {
       sumAmtTransfer += details.output[key]
     }
-
     //Iterating throught the IDs in the transaction
     for(let key in details.output) {
       let payment = details.output[key];
       this.utxo[key] = this.utxo[key] || 0;
-
      //details.input is the id of the sender
        if(key === details.input){
         //Calculate unspent change
         this.calculateUnspentChange(this.utxo[details.input], sumAmtTransfer)
         delete this.utxo[details.input];
-
       }
       this.utxo[key] = this.utxo[key] || 0;
       this.utxo[key] += payment;
