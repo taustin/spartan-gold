@@ -139,6 +139,7 @@ describe('Block', function() {
       assert.equal(b2.utxo[charlie], b.utxo[charlie]);
     });
     it("should carry over all metadata", function() {
+      assert.equal(b2.comment, b.comment)
       assert.equal(b2.prevBlockHash, b.prevBlockHash);
       assert.equal(b2.timestamp, b.timestamp);
       assert.equal(b2.workRequired, b.workRequired);
@@ -454,7 +455,7 @@ describe('Miner', function() {
       let output = { alice: 42 };
       let numTrans = Object.keys(miner.currentBlock.transactions).length;
       let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, kp.public);
+      miner.addTransaction(tx, tx.comment, kp.public);
       let newNumTrans = Object.keys(miner.currentBlock.transactions).length;
       assert.equal(newNumTrans, numTrans + 1);
     });
@@ -462,7 +463,7 @@ describe('Miner', function() {
       let miner = new Miner(null, kp, newGen);
       let output = { alice: 42, bob: 50 };
       let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, kp.public);
+      miner.addTransaction(tx, tx.comment, kp.public);
       assert.equal(miner.getBalance("alice"), 42);
       assert.equal(miner.getBalance("bob"), 50);
     });
@@ -478,14 +479,14 @@ describe('Miner', function() {
       let tx = utils.makeTransaction(kp.private, output, account);
       // Tampering with amount for bob
       tx.txDetails.output['bob'] += 1;
-      assert.ok(!miner.addTransaction(tx, kp.public));
+      assert.ok(!miner.addTransaction(tx, tx.comment, kp.public));
     });
     it("should reject a transaction where the signature does not match the ID", function() {
       let miner = new Miner(null, kp, newGen);
       let output = { alice: 40, bob: 50 };
       // Signing with a different key than used for the account.
       let tx = utils.makeTransaction(newKeypair.private, output, account);
-      assert.ok(!miner.addTransaction(tx, newKeypair.public));
+      assert.ok(!miner.addTransaction(tx, tx.comment, newKeypair.public));
     });
   });
 

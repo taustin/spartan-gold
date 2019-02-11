@@ -14,6 +14,7 @@ module.exports = class Block extends EventEmitter{
     let b = new Block();
     let o = JSON.parse(str);
     b.transactions = o.transactions;
+    b.comment = o.comment;
     // UTXO -- unspent transaction output
     b.utxo = o.utxo ? o.utxo : b.utxo;
     b.prevBlockHash = o.prevBlockHash;
@@ -23,11 +24,12 @@ module.exports = class Block extends EventEmitter{
     return b;
   }
 
-  constructor(prevBlock, workRequired, transactions) {
+  constructor(prevBlock, workRequired, transactions, comment) {
     super();
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.workRequired = workRequired || NUM_LEADING_ZEROES;
     this.transactions = transactions || {};
+    this.comment = comment || {};
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 1;
     this.timestamp = Date.now();
     // Caching unspent transactions for quick lookup.
@@ -46,6 +48,7 @@ module.exports = class Block extends EventEmitter{
     // FIXME: make the utxo optional once we can recalculate them.
     includeUTXO = true;
     return `{ "transactions": ${JSON.stringify(this.transactions)},` +
+      `"comment": "${this.comment}",` +
       (includeUTXO ? ` "utxo": ${JSON.stringify(this.utxo)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
@@ -142,12 +145,13 @@ module.exports = class Block extends EventEmitter{
   }
 
   // This accepts a new transaction if it is valid.
-  addTransaction(trans, minerId) {
+  addTransaction(trans, comment, minerId) {
     let tid = utils.hash(JSON.stringify(trans));
     if (!this.legitTransaction(trans)) {
       throw new Error(`Transaction ${tid} is invalid.`);
     }
     this.transactions[tid] = trans;
+    this.comment = comment;
 
     // If no "input" then it's a coinbase transaction
     if (!trans.txDetails.input) {

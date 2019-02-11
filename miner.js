@@ -41,7 +41,7 @@ module.exports = class Miner extends Client {
       if (!this.verifyMessageSig(o)){
         return;
       }
-      this.addTransaction(o.details.transaction, o.pubKey, minerId);
+      this.addTransaction(o.details.transaction, o.details.transaction.comment, o.pubKey, minerId);
     });
     this.on(BALANCE, (o) => {
       if (!this.verifyMessageSig(o)){
@@ -125,7 +125,7 @@ module.exports = class Miner extends Client {
 
   // Returns false if transaction is not accepted.
   // Otherwise adds transaction to current block.
-  addTransaction(tx, pubKey, minerId) {
+  addTransaction(tx, comment, pubKey, minerId) {
     if (!this.currentBlock.legitTransaction(tx)) {
       return false;
     }
@@ -136,7 +136,7 @@ module.exports = class Miner extends Client {
       return false;
     }
 
-    this.currentBlock.addTransaction(tx, minerId);
+    this.currentBlock.addTransaction(tx, comment, minerId);
     return true;
   }
 
