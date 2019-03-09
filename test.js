@@ -6,6 +6,7 @@ const BigInteger = require('jsbn').BigInteger;
 const Block = require('./block.js');
 const Client = require('./client.js');
 const Miner = require('./miner.js');
+const MerkleTree = require('./merkle-tree.js');
 
 const utils = require('./utils.js');
 
@@ -32,6 +33,33 @@ describe('utils', function() {
     });
     it('should reject an invalid signature', function() {
       assert.ok(!utils.verifySignature(kp.public, "goodbye", sig));
+    });
+  });
+});
+
+describe("MerkleTree", () => {
+  describe("#verify", () => {
+    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    it("should return true if the path is valid.", () => {
+      let path = mt.getPath("a");
+      assert.isTrue(mt.verify("a", path));
+      path = mt.getPath("f");
+      assert.isTrue(mt.verify("f", path));
+    });
+    it("should return false if the wrong path is specified.", () => {
+      let path = mt.getPath("a");
+      assert.isFalse(mt.verify("d", path));
+    });
+  });
+  describe("#contains", () => {
+    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    it("should return true if the tree contains the transaction.", () => {
+      assert.isTrue(mt.contains("a"));
+      assert.isTrue(mt.contains("d"));
+      assert.isTrue(mt.contains("g"));
+    });
+    it("should return false if the tree does not contain the transaction.", () => {
+      assert.isFalse(mt.contains("z"));
     });
   });
 });
@@ -67,7 +95,7 @@ describe('Block', function() {
     it("should carry over all metadata", function() {
       assert.equal(b2.prevBlockHash, b.prevBlockHash);
       assert.equal(b2.timestamp, b.timestamp);
-      assert.equal(b2.workRequired, b.workRequired);
+      assert.equal(b2.target, b.target);
       assert.equal(b2.proof, b.proof);
       assert.equal(b2.chainLength, b.chainLength);
     });
