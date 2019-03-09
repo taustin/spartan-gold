@@ -1,7 +1,11 @@
-let utils = require('./utils.js');
+"use strict";
 
-const NUM_LEADING_ZEROES = 20;
+const BigInteger = require('jsbn').BigInteger;
 
+const utils = require('./utils.js');
+
+const POW_BASE_TARGET = new BigInteger("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+const POW_TARGET = POW_BASE_TARGET.shiftRight(20);
 const COINBASE_AMT_ALLOWED = 1;
 
 module.exports = class Block {
@@ -20,9 +24,9 @@ module.exports = class Block {
     return b;
   }
 
-  constructor(prevBlock, workRequired, transactions) {
+  constructor(prevBlock, target, transactions) {
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
-    this.workRequired = workRequired || NUM_LEADING_ZEROES;
+    this.target = target || POW_TARGET;
     this.transactions = transactions || {};
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 1;
     this.timestamp = Date.now();
@@ -34,7 +38,8 @@ module.exports = class Block {
   // Returns true if the current proof has the right number of leading zeroes
   verifyProof() {
     let h = utils.hash(this.serialize());
-    return utils.hashWork(h) > this.workRequired;
+    let n = new BigInteger(h, 16);
+    return n.compareTo(this.target) < 0;
   }
 
   // Converts a Block into string form.  Some fields are deliberately omitted.
@@ -45,7 +50,7 @@ module.exports = class Block {
       (includeUTXO ? ` "utxo": ${JSON.stringify(this.utxo)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
-      ` "workRequired": "${this.workRequired}",` +
+      ` "target": "${this.target}",` +
       ` "proof": "${this.proof}",` +
       ` "chainLength": "${this.chainLength}" }`;
   }

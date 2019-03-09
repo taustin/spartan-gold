@@ -1,3 +1,5 @@
+"use strict";
+
 let crypto = require('crypto');
 var keypair = require('keypair');
 
