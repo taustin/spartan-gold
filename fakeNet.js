@@ -1,3 +1,5 @@
+"use strict";
+
 // Simple "broadcast" setup to enable easy testing
 
 let miners = [];

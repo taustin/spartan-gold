@@ -1,89 +1,23 @@
-let assert = require('assert');
-let crypto = require('crypto');
+"use strict";
 
-let Block = require('./block.js');
-let Client = require('./client.js');
-let Miner = require('./miner.js');
+const assert = require('chai').assert;
+const BigInteger = require('jsbn').BigInteger;
 
-let utils = require('./utils.js');
+const Block = require('./block.js');
+const Client = require('./client.js');
+const Miner = require('./miner.js');
+const MerkleTree = require('./merkle-tree.js');
+
+const utils = require('./utils.js');
 
 // Using these keypairs for all tests, since key generation is slow.
-let kp = utils.generateKeypair();
-let newKeypair = utils.generateKeypair();
+const kp = utils.generateKeypair();
+const newKeypair = utils.generateKeypair();
+
+// Adding a POW target that should be trivial to match.
+const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
 
 describe('utils', function() {
-  describe('.hashWork', function() {
-    it('should handle both uppercase and lowercase hex letters', function() {
-      let work = utils.hashWork("0AFE890");
-      assert.equal(work, 4);
-      work = utils.hashWork("0afe890");
-      assert.equal(work, 4);
-      work = utils.hashWork("FEA890");
-      assert.equal(work, 0);
-      work = utils.hashWork("fea890");
-      assert.equal(work, 0);
-    })
-    it('should recognize each leading zero as 4 bits of work', function() {
-      let work = utils.hashWork("0AFE890");
-      assert.equal(work, 4);
-      work = utils.hashWork("00AFE890");
-      assert.equal(work, 8);
-    });
-    it('should understand that a leading 1 represents 3 bits of work', function() {
-      let work = utils.hashWork("0001FE890");
-      assert.equal(work, 15);
-      work = utils.hashWork("1FE890");
-      assert.equal(work, 3);
-      work = utils.hashWork("0000111111");
-      assert.equal(work, 19);
-    });
-    it('should understand that a leading 2 or 3 signifies 2 bits of work', function() {
-      let work = utils.hashWork("2FE890999");
-      assert.equal(work, 2);
-      work = utils.hashWork("3FE890999");
-      assert.equal(work, 2);
-      work = utils.hashWork("0003FE890999");
-      assert.equal(work, 14);
-      work = utils.hashWork("02FE890999");
-      assert.equal(work, 6);
-    });
-    it('should understand that a leading 4-7 signifies 1 bit of work', function() {
-      let work = utils.hashWork("4FE890999");
-      assert.equal(work, 1);
-      work = utils.hashWork("5FE890999");
-      assert.equal(work, 1);
-      work = utils.hashWork("6FE890999");
-      assert.equal(work, 1);
-      work = utils.hashWork("7FE890999");
-      assert.equal(work, 1);
-      work = utils.hashWork("0004FE890999");
-      assert.equal(work, 13);
-      work = utils.hashWork("00005FE890999");
-      assert.equal(work, 17);
-      work = utils.hashWork("06FE890999");
-      assert.equal(work, 5);
-      work = utils.hashWork("007");
-      assert.equal(work, 9);
-    });
-    it('should understand that a leading 8-F signifies no work', function() {
-      let work = utils.hashWork("8FE890999");
-      assert.equal(work, 0);
-      work = utils.hashWork("009FE890999");
-      assert.equal(work, 8);
-      work = utils.hashWork("0A9FE890999");
-      assert.equal(work, 4);
-      work = utils.hashWork("BA9FE890999");
-      assert.equal(work, 0);
-      work = utils.hashWork("0CBA9FE890999");
-      assert.equal(work, 4);
-      work = utils.hashWork("DCBA9FE890999");
-      assert.equal(work, 0);
-      work = utils.hashWork("E9FE890999");
-      assert.equal(work, 0);
-      work = utils.hashWork("0FE9FE890999");
-      assert.equal(work, 4);
-    });
-  });
 
   describe('.makeTransaction', function() {
     it('should include a valid signature', function() {
@@ -103,8 +37,33 @@ describe('utils', function() {
   });
 });
 
+describe("MerkleTree", () => {
+  describe("#verify", () => {
+    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    it("should return true if the path is valid.", () => {
+      let path = mt.getPath("a");
+      assert.isTrue(mt.verify("a", path));
+      path = mt.getPath("f");
+      assert.isTrue(mt.verify("f", path));
+    });
+    it("should return false if the wrong path is specified.", () => {
+      let path = mt.getPath("a");
+      assert.isFalse(mt.verify("d", path));
+    });
+  });
+  describe("#contains", () => {
+    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    it("should return true if the tree contains the transaction.", () => {
+      assert.isTrue(mt.contains("a"));
+      assert.isTrue(mt.contains("d"));
+      assert.isTrue(mt.contains("g"));
+    });
+    it("should return false if the tree does not contain the transaction.", () => {
+      assert.isFalse(mt.contains("z"));
+    });
+  });
+});
 
-//Test cases for block
 describe('Block', function() {
   // Classic security names
   let alice = '404f8fd144';
@@ -114,9 +73,8 @@ describe('Block', function() {
   let mini = '3fe8909909'
 
   // Using the genesis block for additional tests
-  let genesisBlock = new Block(null, 4);
+  let genesisBlock = new Block(null, EASY_POW_TARGET);
   genesisBlock.utxo[alice] = 133;
-  //genesisBlock.utxo[alice] = 142;
   genesisBlock.utxo[bob] = 46;
   genesisBlock.utxo[charlie] = 8;
   genesisBlock.utxo[mike] = 4;
@@ -142,7 +100,7 @@ describe('Block', function() {
       assert.equal(b2.comment, b.comment)
       assert.equal(b2.prevBlockHash, b.prevBlockHash);
       assert.equal(b2.timestamp, b.timestamp);
-      assert.equal(b2.workRequired, b.workRequired);
+      assert.equal(b2.target, b.target);
       assert.equal(b2.proof, b.proof);
       assert.equal(b2.chainLength, b.chainLength);
     });
@@ -250,7 +208,7 @@ describe('Block', function() {
   });
 
   describe('#updateUTXO', function() {
-    let b = new Block(genesisBlock, 2);
+    let b = new Block(genesisBlock, EASY_POW_TARGET);
     let details = { output: {}};
     details.input = alice;
     details.output[bob] = 20;
@@ -276,7 +234,7 @@ describe('Block', function() {
       while (!genesisBlock.verifyProof() && genesisBlock.proof < 100) {
         genesisBlock.proof++;
       }
-      assert.ok(genesisBlock.verifyProof());
+      assert.isTrue(genesisBlock.verifyProof());
     });
     it("should reject an invalid proof", function() {
       // It should be very easy to find a failing proof,
@@ -285,7 +243,7 @@ describe('Block', function() {
       while (genesisBlock.verifyProof() && genesisBlock.proof < 3) {
         genesisBlock.proof++;
       }
-      assert.ok(!genesisBlock.verifyProof());
+      assert.isFalse(genesisBlock.verifyProof());
     });
   });
 
@@ -406,16 +364,6 @@ describe('Miner', function() {
     });
   });
 
-  describe('#findProof', function() {
-    it("should find a valid proof for the block", function() {
-      let miner = new Miner(()=>{}, kp);
-      miner.currentBlock.workRequired = 4;
-      let b = miner.currentBlock;
-      miner.findProof(true);
-      assert.ok(b.verifyProof());
-    });
-  });
-
   describe('#announceProof', function() {
     let miner = new Miner(null, kp);
     it("should call broadcast", function() {
@@ -491,20 +439,6 @@ describe('Miner', function() {
   });
 
   describe('#isValidBlock', function() {
-    it("should accept a block with a valid proof", function() {
-      let miner = new Miner(()=>{}, kp);
-      miner.currentBlock.workRequired = 4;
-      // Need to hold on to old block to verify proof.
-      let b = miner.currentBlock;
-      miner.findProof(true);
-      assert.ok(b.verifyProof());
-    });
-    it("should reject a block with an invalid proof", function() {
-      let miner = new Miner(()=>{}, kp);
-      miner.currentBlock.workRequired = 20;
-      // Unless we are very unlucky, this should fail.
-      assert.ok(!miner.currentBlock.verifyProof());
-    });
     it("should reject blocks with invalid transactions", function() {
       // FIXME
     });

@@ -1,8 +1,12 @@
-let EventEmitter = require('events');
-let utils = require('./utils.js');
+"use strict";
 
-const NUM_LEADING_ZEROES = 20;
+const EventEmitter = require('events');
+const BigInteger = require('jsbn').BigInteger;
 
+const utils = require('./utils.js');
+
+const POW_BASE_TARGET = new BigInteger("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+const POW_TARGET = POW_BASE_TARGET.shiftRight(20);
 const COINBASE_AMT_ALLOWED = 1;
 
 const UNSPENT_CHANGE = "UNSPENT_CHANGE";
@@ -24,10 +28,10 @@ module.exports = class Block extends EventEmitter{
     return b;
   }
 
-  constructor(prevBlock, workRequired, transactions, comment) {
+  constructor(prevBlock, target, transactions, comment) {
     super();
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
-    this.workRequired = workRequired || NUM_LEADING_ZEROES;
+    this.target = target || POW_TARGET;
     this.transactions = transactions || {};
     this.comment = comment || {};
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 1;
@@ -40,7 +44,8 @@ module.exports = class Block extends EventEmitter{
   // Returns true if the current proof has the right number of leading zeroes
   verifyProof() {
     let h = utils.hash(this.serialize());
-    return utils.hashWork(h) > this.workRequired;
+    let n = new BigInteger(h, 16);
+    return n.compareTo(this.target) < 0;
   }
 
   // Converts a Block into string form.  Some fields are deliberately omitted.
@@ -52,7 +57,7 @@ module.exports = class Block extends EventEmitter{
       (includeUTXO ? ` "utxo": ${JSON.stringify(this.utxo)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
-      ` "workRequired": "${this.workRequired}",` +
+      ` "target": "${this.target}",` +
       ` "proof": "${this.proof}",` +
       ` "chainLength": "${this.chainLength}" }`;
   }

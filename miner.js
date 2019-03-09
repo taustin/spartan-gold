@@ -1,3 +1,5 @@
+"use strict";
+
 let EventEmitter = require('events');
 let fs = require('fs');
 
