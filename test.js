@@ -69,12 +69,16 @@ describe('Block', function() {
   let alice = '404f8fd144';
   let bob = '07f946d659';
   let charlie = 'c214b8bfb6';
-  
+  let mike = '02fe8909b9'
+  let mini = '3fe8909909'
+
   // Using the genesis block for additional tests
   let genesisBlock = new Block(null, EASY_POW_TARGET);
-  genesisBlock.utxo[alice] = 132;
+  genesisBlock.utxo[alice] = 133;
   genesisBlock.utxo[bob] = 46;
   genesisBlock.utxo[charlie] = 8;
+  genesisBlock.utxo[mike] = 4;
+  genesisBlock.utxo[mini] = 12;
 
   describe('.deserialize', function() {
     let b = new Block(genesisBlock);
@@ -93,6 +97,7 @@ describe('Block', function() {
       assert.equal(b2.utxo[charlie], b.utxo[charlie]);
     });
     it("should carry over all metadata", function() {
+      assert.equal(b2.comment, b.comment)
       assert.equal(b2.prevBlockHash, b.prevBlockHash);
       assert.equal(b2.timestamp, b.timestamp);
       assert.equal(b2.target, b.target);
@@ -112,7 +117,7 @@ describe('Block', function() {
     });
     it("should carry over UTXO values", function() {
       let b = new Block(genesisBlock);
-      assert.equal(b.balance(alice), 132);
+      assert.equal(b.balance(alice), 133);
       assert.equal(b.balance(bob), 46);
       assert.equal(b.balance(charlie), 8);
     });
@@ -148,7 +153,7 @@ describe('Block', function() {
 
   describe('#balance', function() {
     it("should return the unspent outputs for each user", function() {
-      assert.equal(genesisBlock.balance(alice), 132);
+      assert.equal(genesisBlock.balance(alice), 133);
       assert.equal(genesisBlock.balance(bob), 46);
       assert.equal(genesisBlock.balance(charlie), 8);
     });
@@ -206,15 +211,16 @@ describe('Block', function() {
     let b = new Block(genesisBlock, EASY_POW_TARGET);
     let details = { output: {}};
     details.input = alice;
-    details.output[bob] = 100;
-    details.output[charlie] = 32;
+    details.output[bob] = 20;
+    details.output[charlie] = 12;
+    details.output[alice] = 100;
     b.updateUTXO(details);
     it("should update UTXO amounts with transaction details", function() {
-      assert.equal(b.balance(bob), genesisBlock.balance(bob)+100);
-      assert.equal(b.balance(charlie), genesisBlock.balance(charlie)+32);
+      assert.equal(b.balance(bob), genesisBlock.balance(bob)+20);
+      assert.equal(b.balance(charlie), genesisBlock.balance(charlie)+12);
     });
-    it("should delete tokens from sender", function() {
-      assert.equal(b.balance(alice), 0);
+    it("should update the UTXO for the sender", function() {
+      assert.equal(b.balance(alice), genesisBlock.balance(alice)-(20+12) - b.calculateUnspentChange(genesisBlock.balance(alice), (100+20+12)));
     });
   });
 
@@ -397,7 +403,7 @@ describe('Miner', function() {
       let output = { alice: 42 };
       let numTrans = Object.keys(miner.currentBlock.transactions).length;
       let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, kp.public);
+      miner.addTransaction(tx, tx.comment, kp.public);
       let newNumTrans = Object.keys(miner.currentBlock.transactions).length;
       assert.equal(newNumTrans, numTrans + 1);
     });
@@ -405,7 +411,7 @@ describe('Miner', function() {
       let miner = new Miner(null, kp, newGen);
       let output = { alice: 42, bob: 50 };
       let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, kp.public);
+      miner.addTransaction(tx, tx.comment, kp.public);
       assert.equal(miner.getBalance("alice"), 42);
       assert.equal(miner.getBalance("bob"), 50);
     });
@@ -421,14 +427,14 @@ describe('Miner', function() {
       let tx = utils.makeTransaction(kp.private, output, account);
       // Tampering with amount for bob
       tx.txDetails.output['bob'] += 1;
-      assert.ok(!miner.addTransaction(tx, kp.public));
+      assert.ok(!miner.addTransaction(tx, tx.comment, kp.public));
     });
     it("should reject a transaction where the signature does not match the ID", function() {
       let miner = new Miner(null, kp, newGen);
       let output = { alice: 40, bob: 50 };
       // Signing with a different key than used for the account.
       let tx = utils.makeTransaction(newKeypair.private, output, account);
-      assert.ok(!miner.addTransaction(tx, newKeypair.public));
+      assert.ok(!miner.addTransaction(tx, tx.comment, newKeypair.public));
     });
   });
 
@@ -448,5 +454,3 @@ describe('Miner', function() {
     });
   });
 });
-
-

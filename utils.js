@@ -69,9 +69,12 @@ exports.makeTransaction = function(privKey, output, input) {
   };
   if (input) {
     tx.txDetails.input = input;
+    tx.comment = input + " transacts"
+    for(let key in output){
+      tx.comment += " " + key + ":" + output[key]
+    }
   }
   tx.timestamp = Date.now();
   tx.sig = exports.sign(privKey, tx.txDetails);
   return tx;
 }
-

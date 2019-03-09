@@ -8,13 +8,13 @@ let Client = require('./client.js');
 
 let utils = require('./utils.js');
 
+
 const NUM_ROUNDS_MINING = 2000;
 
 const PROOF_FOUND = "PROOF_FOUND";
 const START_MINING = "START_MINING";
 const POST_TRANSACTION = "POST_TRANSACTION";
 const BALANCE = "GET_BALANCE";
-
 // Miners are clients, but they also mine blocks
 // looking for "proofs".
 module.exports = class Miner extends Client {
@@ -28,18 +28,22 @@ module.exports = class Miner extends Client {
 
   // Starts listeners, and begin mining.
   initialize() {
+    let minerId = ""
     this.on(START_MINING, this.findProof);
     this.on(PROOF_FOUND, (o) => {
       if (!this.verifyMessageSig(o)){
         return;
       }
+      let obj = JSON.parse(o.details.block)
+      let trans = Object.values(obj.transactions)[0]
+      minerId = Object.keys(trans.txDetails.output)[0]
       this.receiveBlock(o.details.block);
     });
     this.on(POST_TRANSACTION, (o) => {
       if (!this.verifyMessageSig(o)){
         return;
       }
-      this.addTransaction(o.details.transaction, o.pubKey);
+      this.addTransaction(o.details.transaction, o.details.transaction.comment, o.pubKey, minerId);
     });
     this.on(BALANCE, (o) => {
       if (!this.verifyMessageSig(o)){
@@ -123,7 +127,7 @@ module.exports = class Miner extends Client {
 
   // Returns false if transaction is not accepted.
   // Otherwise adds transaction to current block.
-  addTransaction(tx, pubKey) {
+  addTransaction(tx, comment, pubKey, minerId) {
     if (!this.currentBlock.legitTransaction(tx)) {
       return false;
     }
@@ -133,7 +137,8 @@ module.exports = class Miner extends Client {
     if (utils.calcId(pubKey) !== tx.txDetails.input) {
       return false;
     }
-    this.currentBlock.addTransaction(tx);
+
+    this.currentBlock.addTransaction(tx, comment, minerId);
     return true;
   }
 
@@ -142,6 +147,3 @@ module.exports = class Miner extends Client {
     return this.currentBlock.balance(id);
   }
 }
-
-
-

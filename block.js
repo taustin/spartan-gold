@@ -1,5 +1,6 @@
 "use strict";
 
+const EventEmitter = require('events');
 const BigInteger = require('jsbn').BigInteger;
 
 const utils = require('./utils.js');
@@ -8,13 +9,16 @@ const POW_BASE_TARGET = new BigInteger("ffffffffffffffffffffffffffffffffffffffff
 const POW_TARGET = POW_BASE_TARGET.shiftRight(20);
 const COINBASE_AMT_ALLOWED = 1;
 
-module.exports = class Block {
+const UNSPENT_CHANGE = "UNSPENT_CHANGE";
+
+module.exports = class Block extends EventEmitter{
 
   // Takes a string and produces a Block object
   static deserialize(str) {
     let b = new Block();
     let o = JSON.parse(str);
     b.transactions = o.transactions;
+    b.comment = o.comment;
     // UTXO -- unspent transaction output
     b.utxo = o.utxo ? o.utxo : b.utxo;
     b.prevBlockHash = o.prevBlockHash;
@@ -24,10 +28,12 @@ module.exports = class Block {
     return b;
   }
 
-  constructor(prevBlock, target, transactions) {
+  constructor(prevBlock, target, transactions, comment) {
+    super();
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.target = target || POW_TARGET;
     this.transactions = transactions || {};
+    this.comment = comment || {};
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 1;
     this.timestamp = Date.now();
     // Caching unspent transactions for quick lookup.
@@ -47,6 +53,7 @@ module.exports = class Block {
     // FIXME: make the utxo optional once we can recalculate them.
     includeUTXO = true;
     return `{ "transactions": ${JSON.stringify(this.transactions)},` +
+      `"comment": "${this.comment}",` +
       (includeUTXO ? ` "utxo": ${JSON.stringify(this.utxo)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
@@ -71,13 +78,44 @@ module.exports = class Block {
     return !!this.coinbase;
   }
 
-  // Given the transaction details, this method updates
-  // the UTXO values.
+  //Calculates and broadcasts the unspent change
+  calculateUnspentChange(input, sumAmtTransfer) {
+    let unspentChange = (input - sumAmtTransfer);
+    this.emit(UNSPENT_CHANGE, unspentChange);
+    return unspentChange;
+  }
+
+  //Updates the miner with the unspent change
+  updateMinerWithUnspentChange(minerId){
+    //Assignining Unspent Change to the Miner
+    this.on(UNSPENT_CHANGE, (o) =>{
+      if(this.utxo[minerId]){
+        this.utxo[minerId] += o;
+        return;
+      }
+    });
+  }
+
+  // Given the transaction details & the minerID,
+  //this method updates the UTXO values.
   updateUTXO(details) {
-    // All coins are implicitly spent
-    if (details.input) delete this.utxo[details.input];
+    let unspentChange = 0;
+    //Sum amount transferred
+    let sumAmtTransfer = 0;
+
+    for(let key in details.output) {
+      sumAmtTransfer += details.output[key]
+    }
+    //Iterating throught the IDs in the transaction
     for(let key in details.output) {
       let payment = details.output[key];
+      this.utxo[key] = this.utxo[key] || 0;
+     //details.input is the id of the sender
+       if(key === details.input){
+        //Calculate unspent change
+        this.calculateUnspentChange(this.utxo[details.input], sumAmtTransfer)
+        delete this.utxo[details.input];
+      }
       this.utxo[key] = this.utxo[key] || 0;
       this.utxo[key] += payment;
     }
@@ -112,20 +150,24 @@ module.exports = class Block {
   }
 
   // This accepts a new transaction if it is valid.
-  addTransaction(trans) {
+  addTransaction(trans, comment, minerId) {
     let tid = utils.hash(JSON.stringify(trans));
     if (!this.legitTransaction(trans)) {
       throw new Error(`Transaction ${tid} is invalid.`);
     }
     this.transactions[tid] = trans;
-    this.updateUTXO(trans.txDetails);
+    this.comment = comment;
+
+    // If no "input" then it's a coinbase transaction
     if (!trans.txDetails.input) {
       this.coinbase = trans;
     }
+
+    if(minerId) {
+      this.updateMinerWithUnspentChange(minerId);
+    }
+    this.updateUTXO(trans.txDetails);
+
   }
 
 }
-
-
-
-
