@@ -7,6 +7,8 @@ const Block = require('./block.js');
 const Client = require('./client.js');
 const Miner = require('./miner.js');
 const MerkleTree = require('./merkle-tree.js');
+const Transaction = require('./transaction.js');
+const Wallet = require('./wallet.js');
 
 const utils = require('./utils.js');
 
@@ -19,12 +21,14 @@ const EASY_POW_TARGET = new BigInteger("ffffffffffffffffffffffffffffffffffffffff
 
 describe('utils', function() {
 
+  /*
   describe('.makeTransaction', function() {
     it('should include a valid signature', function() {
       let tx = utils.makeTransaction(kp.private, {bob: 12, charlie: 5}, "alice");
       assert.ok(utils.verifySignature(kp.public, tx.txDetails, tx.sig));
     });
   });
+*/
 
   describe('.verifySignature', function() {
     let sig = utils.sign(kp.private, "hello");
@@ -33,6 +37,133 @@ describe('utils', function() {
     });
     it('should reject an invalid signature', function() {
       assert.ok(!utils.verifySignature(kp.public, "goodbye", sig));
+    });
+  });
+});
+
+describe("Transaction", () => {
+  describe("#spendOutput", () => {
+    let pubKeyHash = utils.calcAddress(kp.public);
+    let tx = new Transaction({
+      inputs: [],
+      outputs: [{amount: 42, pubKeyHash: pubKeyHash}],
+    });
+    it("should return the amount of tokens in the output if the input matches the output.", () => {
+      let nextInput = {
+        txID: tx.id,
+        outputIndex: 0,
+        pubKey: kp.public,
+        sig: utils.sign(kp.private, tx.outputs[0])
+      };
+      assert.equal(tx.spendOutput(nextInput), 42);
+    });
+    it("should throw an exception if the transaction ID is invalid.", () => {
+      let nextInput = {
+        txID: 12345,
+        outputIndex: 0,
+        pubKey: kp.public,
+        sig: utils.sign(kp.private, tx.outputs[0]),
+      };
+      assert.throws(() => {
+        tx.spendOutput(nextInput);
+      });
+    });
+    it("should throw and exception if the signature is invalid.", () => {
+      let nextInput = {
+        txID: tx.id,
+        outputIndex: 0,
+        pubKey: kp.public,
+        sig: utils.sign(newKeypair.private, tx.outputs[0]),
+      };
+      assert.throws(() => {
+        tx.spendOutput(nextInput);
+      });
+    });
+  });
+  describe("#isValid", () => {
+    let pubKeyHash = utils.calcAddress(kp.public);
+    let cbTX = new Transaction({
+      coinBaseReward: 1,
+      outputs: [{amount: 1, pubKeyHash: pubKeyHash},
+                {amount: 42, pubKeyHash: pubKeyHash}],
+    });
+    let input = {
+      txID: cbTX.id,
+      outputIndex: 1,
+      pubKey: kp.public,
+      sig: utils.sign(kp.private, cbTX.outputs[1]),
+    };
+    let newPubKeyHash = utils.calcAddress(newKeypair.public);
+    it("should always consider coinbase tranasctions valid", () => {
+      assert.isTrue(cbTX.isValid());
+    });
+    it("should consider a transaction valid if the outputs do not exceed the inputs", () => {
+      let tx = new Transaction({
+        inputs: [input],
+        outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
+                  {amount: 10, pubKeyHash: pubKeyHash}],
+      });
+      assert.isTrue(tx.isValid([cbTX.outputs[1]]));
+    });
+    it("should consider a transaction invalid if the outputs exceed the inputs", () => {
+      let tx = new Transaction({
+        inputs: [input],
+        outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
+                  {amount: 30, pubKeyHash: pubKeyHash}],
+      });
+      assert.isFalse(tx.isValid([cbTX.outputs[1]]));
+    });
+    it("should reject a transaction if the signatures on the inputs do not match the UTXOs", () => {
+      let badInput = {
+        txID: cbTX.id,
+        outputIndex: 1,
+        pubKey: newKeypair.public,
+        sig: utils.sign(newKeypair.private, cbTX.outputs[1]),
+      };
+      let tx = new Transaction({
+        inputs: [badInput],
+        outputs: [{amount: 40, pubKeyHash: newPubKeyHash}],
+      });
+      assert.isFalse(tx.isValid([cbTX.outputs[1]]));
+    });
+  });
+});
+
+describe("Wallet", () => {
+  describe("#balance", () => {
+    let w = new Wallet();
+    let addr = w.makeAddress();
+    let utxo1 = { amount: 42, pubKeyHash: addr };
+    let utxo2 = { amount: 25, pubKeyHash: addr };
+    let tx = new Transaction({
+      inputs: [],
+      outputs: [utxo1, utxo2],
+    });
+    w.addUTXO(utxo1, tx.id, 0);
+    w.addUTXO(utxo2, tx.id, 1);
+    it("should return the total value of coins stored in the wallet.", () => {
+      assert.equal(w.balance, 67);
+    });
+  });
+  describe("#spendUTXOs", () => {
+    let w = new Wallet();
+    let addr = w.makeAddress();
+    let utxo1 = { amount: 42, pubKeyHash: addr };
+    let utxo2 = { amount: 25, pubKeyHash: addr };
+    let tx = new Transaction({
+      inputs: [],
+      outputs: [utxo1, utxo2],
+    });
+    w.addUTXO(utxo1, tx.id, 0);
+    w.addUTXO(utxo2, tx.id, 1);
+    it("should spend sufficient UTXOs to reach the balance.", () => {
+      assert.equal(w.utxoDetails.length, 2);
+      // Either UTXO should be sufficient.
+      let { txID, outputIndex, pubKey, sig } = w.spendUTXOs(20)[0];
+      assert.equal(w.utxoDetails.length, 1);
+      assert.equal(txID, tx.id);
+      // Make sure the signature is valid
+      assert.isTrue(utils.verifySignature(pubKey, tx.outputs[outputIndex], sig));
     });
   });
 });
@@ -97,7 +228,6 @@ describe('Block', function() {
       assert.equal(b2.utxo[charlie], b.utxo[charlie]);
     });
     it("should carry over all metadata", function() {
-      assert.equal(b2.comment, b.comment)
       assert.equal(b2.prevBlockHash, b.prevBlockHash);
       assert.equal(b2.timestamp, b.timestamp);
       assert.equal(b2.target, b.target);
@@ -133,6 +263,7 @@ describe('Block', function() {
       let output = {};
       output[bob] = 1000000;
       let tx = utils.makeTransaction(kp.private, output, alice);
+      //let tx = new Transaction();
       assert.throws(function() {
         b.addTransaction(tx);
       });
@@ -246,9 +377,9 @@ describe('Block', function() {
       assert.isFalse(genesisBlock.verifyProof());
     });
   });
-
 });
 
+/*
 describe('Client', function() {
   describe('.constructor', function() {
     let client = new Client();
@@ -348,7 +479,7 @@ describe('Client', function() {
 
 describe('Miner', function() {
   let newGen = new Block();
-  let account = utils.calcId(kp.public);
+  let account = utils.calcAddress(kp.public);
   newGen.utxo[account] = 100;
 
   describe('.constructor', function() {
@@ -454,3 +585,4 @@ describe('Miner', function() {
     });
   });
 });
+*/

@@ -12,34 +12,6 @@ exports.hash = function hash(s, encoding) {
   return crypto.createHash(HASH_ALG).update(s).digest(encoding);
 }
 
-// Takes in a hash and returns the number of leading zeroes.
-// This approach is not particularly flexible or efficient,
-// but it avoids some of the complexity in the code.
-exports.hashWork = function(h) {
-  let pat = /[1-9,A-F,a-f]/;
-  if (!h.match(pat)) {
-    throw new Error(`Invalid hash: ${h}`);
-  }
-  let index = h.match(pat).index;
-  // Converting number of hex zeroes to number of binary zeroes
-  let numZeroBits = 4 * index;
-  // Adding in extra leading zeroes.
-  switch(h.charAt(index)) {
-    case '1':
-      return numZeroBits + 3;
-    case '2':
-    case '3':
-      return numZeroBits + 2;
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-      return numZeroBits + 1;
-    default:
-      return numZeroBits;
-  }
-}
-
 exports.generateKeypair = function() {
   return keypair();
 }
@@ -58,8 +30,10 @@ exports.verifySignature = function(pubKey, msg, sig) {
   return verifier.update(str).verify(pubKey, sig, 'hex');
 }
 
-exports.calcId = function(key) {
-  return exports.hash(""+key, 'base64');
+exports.calcAddress = function(key) {
+  let addr = exports.hash(""+key, 'base64');
+  //console.log(`Generating address ${addr} from ${key}`);
+  return addr;
 }
 
 exports.makeTransaction = function(privKey, output, input) {
@@ -69,10 +43,12 @@ exports.makeTransaction = function(privKey, output, input) {
   };
   if (input) {
     tx.txDetails.input = input;
+    /*
     tx.comment = input + " transacts"
     for(let key in output){
       tx.comment += " " + key + ":" + output[key]
     }
+    */
   }
   tx.timestamp = Date.now();
   tx.sig = exports.sign(privKey, tx.txDetails);
