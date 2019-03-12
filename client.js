@@ -2,34 +2,86 @@
 
 let EventEmitter = require('events');
 
-let utils = require('./utils.js');
+let Transaction = require('./transaction.js');
+let Wallet = require('./wallet.js');
 
 const POST = "POST_TRANSACTION";
-const BALANCE = "GET_BALANCE";
 
-// FIXME: Add static method to read keys from files
+const DEFAULT_TX_FEE = 1;
+
+/**
+ * A client has a wallet, sends messages, and receives messages
+ * on the Blockchain network.
+ */
 module.exports = class Client extends EventEmitter {
-  constructor(broadcast, keys) {
+
+  /**
+   * The broadcast function determines how the client communicates
+   * with other entities in the system. (This approach allows us to
+   * simplify our testing setup.)
+   * 
+   * @param {function} broadcast - The function used by the client
+   *    to send messages to all miners and clients.
+   */
+  constructor(broadcast) {
     super();
-    // The broadcast function determines how the client communicates
-    // with other entities in the system.
-    // (This approach allows us to simplify our testing setup.)
+
     this.broadcast = broadcast;
-    this.keys = keys || utils.generateKeypair();
-    this.keys.id = utils.calcId(this.keys.public);
+
+    this.wallet = new Wallet();
+
+    // Clients will listen for any funs given to them.
+    // They will optimistically assume that all transactons
+    // will be accepted and finalized.
+    this.on(POST, (tx) => this.receiveOutput(tx));
   }
 
-  // Broadcasts a transaction from the client giving money
-  // to the clients specified in 'output'.  Note that all
-  // money is given away, so the client must be careful to
-  // pay themself any change left over.
-  postTransaction(output) {
-    let tx = utils.makeTransaction(this.keys.private, output, this.keys.id);
-    let msg = { details: {transaction: tx }};
-    this.signMessage(msg);
-    this.broadcast(POST, msg);
+  /**
+   * Broadcasts a transaction from the client giving money to the clients
+   * specified in 'outputs'.  Note that any unused money is sent to a new
+   * change address.  A transaction fee may be specified, which can be more
+   * or less than the default value.
+   * 
+   * @param {Array} outputs - The list of outputs of other addresses and
+   *    amounts to pay.
+   * @param {number} fee - The transaction fee reward to pay the miner.
+   */
+  postTransaction(outputs, fee=DEFAULT_TX_FEE) {
+    // We calculate the total value of coins needed.
+    let totalPayments = outputs.reduce((acc, {amount}) => acc + amount, 0) + fee;
+
+    // Make sure the client has enough money.
+    if (totalPayments > this.wallet.balance) {
+      throw new Error(`Requested ${totalPayments}, but wallet only has ${this.wallet.balance}.`);
+    }
+
+    // Gathering the needed inputs, and specifying an address for change.
+    let { inputs, changeAmt } = this.wallet.spendUTXOs(totalPayments);
+    if (changeAmt > 0) {
+      let changeAddr = this.wallet.makeAddress();
+      outputs.push({ pubKeyHash: changeAddr, amount: changeAmt });
+    }
+
+    // Broadcasting the new transaction.
+    let tx = new Transaction({
+      inputs: inputs,
+      outputs: outputs,
+    });
+    this.broadcast(POST, tx);
   }
 
+  /**
+   * Accepts payment and adds it to the client's wallet.
+   */
+  receiveOutput(tx) {
+    tx.outputs.forEach(output => {
+      if (this.wallet.hasKey(output.pubKeyHash)) {
+        this.wallet.addUTXO(output);
+      }
+    });
+  }
+
+  /*
   // Broadcasts a request for the balance of an account
   // from all miners.  If 'id' is not specified, then
   // the client's account is used by default.
@@ -39,7 +91,9 @@ module.exports = class Client extends EventEmitter {
     this.signMessage(msg);
     this.broadcast(BALANCE, msg);
   }
+  */
 
+  /*
   // Signs the 'details' field of the 'msg' object.
   // The signature is stored in the 'sig' field,
   // and the public key is stored in the 'pubKey' field.
@@ -49,14 +103,20 @@ module.exports = class Client extends EventEmitter {
     msg.pubKey = this.keys.public;
   }
 
-  // Assuming that an object was correctly signed by the signMessage
-  // method, this method will validate that signature.
-  verifyMessageSig(msg) {
-    if (msg.pubKey && msg.sig && msg.details) {
+  /*
+   * @param {Object} msg - The message received from another party.
+   * @param {string} msg.pubKey - The public attached to the message.
+   * @param {string} sig - The signature of the message.
+   * @param {Object} details - The contents of the message being signed.
+   */
+  /*
+  verifyMessageSig({pubKey, sig, details}) {
+    if (pubKey && sig && details) {
       return utils.verifySignature(msg.pubKey, msg.details, msg.sig);
     } else {
       return false;
     }
   }
+  */
 }
 

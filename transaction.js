@@ -15,7 +15,7 @@ const utils = require('./utils.js');
  * between the total value of the inputs and the total value of the
  * outputs.
  * 
-*/
+ */
 module.exports = class Transaction {
 
   /**
@@ -23,14 +23,15 @@ module.exports = class Transaction {
    * and outputs.  The inputs are optional, in order to support
    * coinbase transactions.
    * 
-   * An output is a pair of an address and an amount of coins, in the form:
-   *  {amount, address}
+   * An output is a pair of an amount of coins and the hash of a
+   * public key, in the form:
+   *  {amount, pubKeyHash}
    * 
-   * An address is the hash of a public key.
+   * The pubKeyHash is also refered to as an "address".
    * 
    * An input is a triple of a transaction ID, the index of an output
    * within that transaction ID, and the public key that matches the
-   * address.  It is in the form:
+   * hash of the public key from a previous output.  It is in the form:
    *  {txID, outputIndex, pubKey, sig}
    * 
    * @constructor
@@ -38,10 +39,9 @@ module.exports = class Transaction {
    * @param {Array} obj.outputs - An array of the outputs.
    * @param {Array} obj.inputs - An array of the inputs.
    */
-  constructor({outputs, inputs=[], coinBaseReward=0}) {
+  constructor({outputs, inputs=[]}) {
     this.inputs = inputs;
     this.outputs = outputs;
-    this.coinBaseReward = coinBaseReward;
 
     this.timestamp = Date.now();
 
@@ -73,53 +73,43 @@ module.exports = class Transaction {
 
   /**
    * Validates that a transaction's inputs and outputs are valid.
-   * In order to validate a transaction, the UTXOs matching the
-   * inputs are needed.  The rules for a valid transaction differ
-   * between normal transactions and coinbase transactions.
+   * In order to validate a transaction, the map of UTXOs is needed.
    * 
-   * Coinbase transactions have no matching UTXOs.  This method
-   * does **not** validate them; the role of validating the
-   * coinbase transaction instead lies with the Block class.
-   * 
-   * For normal transactions, the sum of the UTXOs matching the inputs
+   * A transaction is valid if the sum of the UTXOs matching the inputs
    * must be at least as large as the sum out the outputs.  Also, the
    * signatures of the inputs must be valid and match the pubKeyHash
    * specified in the corresponding UTXOs.
    * 
-   * @param {Array} matchingOutputs - The UTXOs matching the inputs.
+   * Note that coinbase transactions are **not** valid according to this
+   * method, and should not be tested with it.
+   * 
+   * @param {Array} utxos - The UTXOs matching the inputs.
    * @returns {boolean} True if the transaction is valid, false otherwise.
    */
   isValid(utxos) {
-    // Coinbase transactions are assumed valid by default.
-    // We need to see the whole block to validate it.
-    if (this.coinBaseReward !== 0) {
-      return true;
-    }
-
-    // Building up a map of keys in the inputs.
-    let keys = {};
-    this.inputs.forEach(({pubKey, sig}) => {
-      let keyHash = utils.calcAddress(pubKey);
-      keys[keyHash] = {pubKey, sig};
-    });
-
     // Calculating the total input and verifying each key.
     let totalIn = 0;
-    for (let i in utxos) {
-      let utxo = utxos[i];
+    for (let i in this.inputs) {
+      let {txID, outputIndex, pubKey, sig} = this.inputs[i];
+
+      // Lookup the UTXO.
+      let utxoTX = utxos[txID];
+      if (!utxoTX) return false;
+      let utxo = utxoTX[outputIndex];
+
+      // Check if the UTXO is valid.
+      if (!utxo || !utils.verifySignature(pubKey, utxo, sig)) {
+        return false;
+      }
+
+      // Make sure the UTXO matches the input.
+      if (utils.calcAddress(pubKey) !== utxo.pubKeyHash) {
+        return false;
+      }
 
       // Track the total inputs
       totalIn += utxo.amount;
-
-      // Make sure the signature is valid, and uses the right key.
-      let keySig = keys[utxo.pubKeyHash];
-      if (!keySig ||
-          !utxo.pubKeyHash ||
-          !utils.verifySignature(keySig.pubKey, utxo, keySig.sig)) {
-        return false;
-      }
     }
-
     return totalIn >= this.totalOutput();
   }
 

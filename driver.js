@@ -2,12 +2,36 @@
 
 let Block = require('./block.js');
 let Client = require('./client.js');
-let Miner = require('./miner.js');
+//let Miner = require('./miner.js');
 
 let utils = require('./utils.js');
 let fakeNet = require('./fakeNet.js');
 
+let alice = new Client(fakeNet.broadcast);
+let bob = new Client(fakeNet.broadcast);
+let charlie = new Client(fakeNet.broadcast);
 
+let genesis = Block.makeGenesisBlock([
+  { client: alice, amount: 133},
+  { client: bob, amount: 99},
+  { client: charlie, amount: 50},
+]);
+
+console.log(`Alice has ${alice.wallet.balance} coins.`);
+console.log(`Bob has ${bob.wallet.balance} coins.`);
+console.log(`Charlie has ${charlie.wallet.balance} coins.`);
+
+fakeNet.register(alice, bob, charlie);
+
+let bobAddr = bob.wallet.makeAddress();
+alice.postTransaction([{ amount: 40, pubKeyHash: bobAddr }]);
+
+console.log();
+console.log("After a transaction:");
+console.log(`Alice has ${alice.wallet.balance} coins.`);
+console.log(`Charlie has ${charlie.wallet.balance} coins.`);
+
+/*
 // Creating a genesis block and miners.
 const GENESIS_BLOCK = new Block();
 
@@ -69,3 +93,4 @@ setTimeout(() => {
   console.log(mini.currentBlock.utxo)
 
 }, 5000);
+*/

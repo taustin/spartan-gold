@@ -87,6 +87,8 @@ describe("Transaction", () => {
       outputs: [{amount: 1, pubKeyHash: pubKeyHash},
                 {amount: 42, pubKeyHash: pubKeyHash}],
     });
+    let utxos = {};
+    utxos[cbTX.id] = cbTX.outputs;
     let input = {
       txID: cbTX.id,
       outputIndex: 1,
@@ -94,25 +96,25 @@ describe("Transaction", () => {
       sig: utils.sign(kp.private, cbTX.outputs[1]),
     };
     let newPubKeyHash = utils.calcAddress(newKeypair.public);
-    it("should always consider coinbase tranasctions valid", () => {
-      assert.isTrue(cbTX.isValid());
-    });
+
     it("should consider a transaction valid if the outputs do not exceed the inputs", () => {
       let tx = new Transaction({
         inputs: [input],
         outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
                   {amount: 10, pubKeyHash: pubKeyHash}],
       });
-      assert.isTrue(tx.isValid([cbTX.outputs[1]]));
+      assert.isTrue(tx.isValid(utxos));
     });
+
     it("should consider a transaction invalid if the outputs exceed the inputs", () => {
       let tx = new Transaction({
         inputs: [input],
         outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
                   {amount: 30, pubKeyHash: pubKeyHash}],
       });
-      assert.isFalse(tx.isValid([cbTX.outputs[1]]));
+      assert.isFalse(tx.isValid(utxos));
     });
+
     it("should reject a transaction if the signatures on the inputs do not match the UTXOs", () => {
       let badInput = {
         txID: cbTX.id,
@@ -124,7 +126,7 @@ describe("Transaction", () => {
         inputs: [badInput],
         outputs: [{amount: 40, pubKeyHash: newPubKeyHash}],
       });
-      assert.isFalse(tx.isValid([cbTX.outputs[1]]));
+      assert.isFalse(tx.isValid(utxos));
     });
   });
 });
@@ -157,10 +159,11 @@ describe("Wallet", () => {
     w.addUTXO(utxo1, tx.id, 0);
     w.addUTXO(utxo2, tx.id, 1);
     it("should spend sufficient UTXOs to reach the balance.", () => {
-      assert.equal(w.utxoDetails.length, 2);
+      assert.equal(w.coins.length, 2);
       // Either UTXO should be sufficient.
-      let { txID, outputIndex, pubKey, sig } = w.spendUTXOs(20)[0];
-      assert.equal(w.utxoDetails.length, 1);
+      let { inputs } = w.spendUTXOs(20);
+      let { txID, outputIndex, pubKey, sig } = inputs[0];
+      assert.equal(w.coins.length, 1);
       assert.equal(txID, tx.id);
       // Make sure the signature is valid
       assert.isTrue(utils.verifySignature(pubKey, tx.outputs[outputIndex], sig));
@@ -196,186 +199,29 @@ describe("MerkleTree", () => {
 });
 
 describe('Block', function() {
-  // Classic security names
-  let alice = '404f8fd144';
-  let bob = '07f946d659';
-  let charlie = 'c214b8bfb6';
-  let mike = '02fe8909b9'
-  let mini = '3fe8909909'
-
-  // Using the genesis block for additional tests
-  let genesisBlock = new Block(null, EASY_POW_TARGET);
-  genesisBlock.utxo[alice] = 133;
-  genesisBlock.utxo[bob] = 46;
-  genesisBlock.utxo[charlie] = 8;
-  genesisBlock.utxo[mike] = 4;
-  genesisBlock.utxo[mini] = 12;
-
-  describe('.deserialize', function() {
-    let b = new Block(genesisBlock);
-    b.proof = 42;
-    let s = b.serialize(true);
-    let b2 = Block.deserialize(s);
-    it("should carry over all transactions", function() {
-      assert.equal(Object.keys(b2.transactions).length, Object.keys(b.transactions).length);
-      Object.keys(b.transactions).forEach((k) => {
-        assert.equal(b2.transactions[k], b.transactions[k]);
-      });
-    });
-    it("should carry over UTXO values", function() {
-      assert.equal(b2.utxo[alice], b.utxo[alice]);
-      assert.equal(b2.utxo[bob], b.utxo[bob]);
-      assert.equal(b2.utxo[charlie], b.utxo[charlie]);
-    });
-    it("should carry over all metadata", function() {
-      assert.equal(b2.prevBlockHash, b.prevBlockHash);
-      assert.equal(b2.timestamp, b.timestamp);
-      assert.equal(b2.target, b.target);
-      assert.equal(b2.proof, b.proof);
-      assert.equal(b2.chainLength, b.chainLength);
-    });
-    it("should preserved serialized form", function() {
-      assert.equal(b2.serialize(), s);
-    });
-  });
-
-  describe('.constructor', function() {
-    it("should increase chainLength by 1", function() {
-      let b = new Block(genesisBlock);
-      assert.equal(genesisBlock.chainLength, 1);
-      assert.equal(b.chainLength, 2);
-    });
-    it("should carry over UTXO values", function() {
-      let b = new Block(genesisBlock);
-      assert.equal(b.balance(alice), 133);
-      assert.equal(b.balance(bob), 46);
-      assert.equal(b.balance(charlie), 8);
-    });
-    it("should record the hash value of the previous block", function() {
-      let b = new Block(genesisBlock);
-      assert.equal(b.prevBlockHash, genesisBlock.hashVal());
-    });
-  });
-
   describe('#addTransaction', function() {
-    let b = new Block(genesisBlock);
-    it("should reject invalid transactions", function() {
-      let output = {};
-      output[bob] = 1000000;
-      let tx = utils.makeTransaction(kp.private, output, alice);
-      //let tx = new Transaction();
-      assert.throws(function() {
-        b.addTransaction(tx);
-      });
-    });
+    // Slow test.
+    /*
+    let aliceWallet = new Wallet();
+    let bobWallet = new Wallet();
+    let charlieWallet = new Wallet();
+    let gb = Block.makeGenesisBlock([
+      { client: {wallet: aliceWallet}, amount: 150 },
+      { client: {wallet: bobWallet}, amount: 90 },
+      { client: {wallet: charlieWallet}, amount: 20 },
+    ]);
     it("should update the block's utxo if the transaction was successful", function() {
-      let b2 = new Block(genesisBlock);
-      let output = {};
-      output[alice] = 100;
-      output[bob] = 20;
-      output[charlie] = 12;
-      let tx = utils.makeTransaction(kp.private, output, alice);
-      b2.addTransaction(tx);
-      assert.equal(b2.balance(alice), 100);
-      assert.equal(b2.balance(bob), genesisBlock.balance(bob)+20);
-      assert.equal(b2.balance(charlie), genesisBlock.balance(charlie)+12);
+      let { inputs } = aliceWallet.spendUTXOs(25);
+      let tx = new Transaction({
+        inputs: inputs,
+        outputs: [ { pubKeyHash: bobWallet.makeAddress(), amount: 20 } ],
+      });
+      gb.addTransaction(tx);
+      bobWallet.addUTXO(tx.outputs[0], tx.id, 0);
+      assert.equal(aliceWallet.balance, 0);
+      assert.equal(bobWallet.balance, 110);
     });
-  });
-
-  describe('#balance', function() {
-    it("should return the unspent outputs for each user", function() {
-      assert.equal(genesisBlock.balance(alice), 133);
-      assert.equal(genesisBlock.balance(bob), 46);
-      assert.equal(genesisBlock.balance(charlie), 8);
-    });
-    it("should return 0 for other users", function() {
-      assert.equal(genesisBlock.balance('face0ff'), 0);
-    });
-  });
-
-  describe('#legitTransaction', function() {
-    it("should reject transactions spending excess coins", function() {
-      let outputs = {};
-      outputs[bob] = 500;
-      let tx = utils.makeTransaction(kp.private, outputs, alice);
-      assert.ok(!genesisBlock.legitTransaction(tx));
-    });
-    it("should reject transactions with negative amounts", function() {
-      let outputs = {};
-      outputs[bob] = -50;
-      let tx = utils.makeTransaction(kp.private, outputs, alice);
-      assert.ok(!genesisBlock.legitTransaction(tx));
-    });
-    it("should accept transactions with sufficient funds", function() {
-      let outputs = {};
-      outputs[bob] = 50;
-      let tx = utils.makeTransaction(kp.private, outputs, alice);
-      assert.ok(genesisBlock.legitTransaction(tx));
-    });
-    it("should accept one coinbase transaction in a block", function() {
-      let outputs = {};
-      outputs[alice] = 1;
-      let tx = utils.makeTransaction(kp.private, outputs);
-      assert.ok(genesisBlock.legitTransaction(tx));
-    });
-    it("should reject coinbase transactions that exceed the payout", function() {
-      let outputs = {};
-      outputs[alice] = 100000;
-      let tx = utils.makeTransaction(kp.private, outputs);
-      assert.ok(!genesisBlock.legitTransaction(tx));
-    });
-    it("should reject multiple coinbase transactions in a block", function() {
-      let b = new Block(genesisBlock);
-      let outputs = {};
-      outputs[alice] = 1;
-      let tx = utils.makeTransaction(kp.private, outputs);
-      b.addTransaction(tx);
-      // Trying to add the coinbase transaction a second time.
-      assert.ok(!b.legitTransaction(tx));
-    });
-    it("should treat unspent coins as miner reward", function() {
-      //FIXME
-    });
-  });
-
-  describe('#updateUTXO', function() {
-    let b = new Block(genesisBlock, EASY_POW_TARGET);
-    let details = { output: {}};
-    details.input = alice;
-    details.output[bob] = 20;
-    details.output[charlie] = 12;
-    details.output[alice] = 100;
-    b.updateUTXO(details);
-    it("should update UTXO amounts with transaction details", function() {
-      assert.equal(b.balance(bob), genesisBlock.balance(bob)+20);
-      assert.equal(b.balance(charlie), genesisBlock.balance(charlie)+12);
-    });
-    it("should update the UTXO for the sender", function() {
-      assert.equal(b.balance(alice), genesisBlock.balance(alice)-(20+12) - b.calculateUnspentChange(genesisBlock.balance(alice), (100+20+12)));
-    });
-  });
-
-  describe('#verifyProof', function() {
-    it("should accept a valid proof", function() {
-      // Due to the low proof of work setting, we should be able
-      // to find a proof within a few attempts.
-      // If we have tried 100 proofs, it is overwhelmingly likely
-      // that something has broken.
-      genesisBlock.proof = 0;
-      while (!genesisBlock.verifyProof() && genesisBlock.proof < 100) {
-        genesisBlock.proof++;
-      }
-      assert.isTrue(genesisBlock.verifyProof());
-    });
-    it("should reject an invalid proof", function() {
-      // It should be very easy to find a failing proof,
-      // so we don't need to try many times.
-      genesisBlock.proof = 0;
-      while (genesisBlock.verifyProof() && genesisBlock.proof < 3) {
-        genesisBlock.proof++;
-      }
-      assert.isFalse(genesisBlock.verifyProof());
-    });
+    //*/
   });
 });
 

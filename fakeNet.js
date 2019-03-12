@@ -2,15 +2,15 @@
 
 // Simple "broadcast" setup to enable easy testing
 
-let miners = [];
+let clients = [];
 
-exports.registerMiner = function(m) {
-  miners.push(m);
+exports.register = function(...miners) {
+  miners.forEach(client => clients.push(client));
 }
 
 exports.broadcast = function(msg, o) {
-  miners.forEach((m) => {
-    m.emit(msg, o);
+  clients.forEach((client) => {
+    client.emit(msg, o);
   });
 }
 
