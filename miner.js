@@ -34,6 +34,9 @@ module.exports = class Miner extends Client {
 
   /**
    * Starts listeners and begins mining.
+   * 
+   * @param {Block} startingBlock - This is the latest block with a proof.
+   *      The miner will try to add new blocks on top of it.
    */
   initialize(startingBlock) {
     this.currentBlock = startingBlock;
@@ -119,11 +122,17 @@ module.exports = class Miner extends Client {
       return false;
     }
 
-    // Validating with the used outputs, rather than the unspent outputs.
-    if (!b.isValid(b.usedOutputs)) {
+    // FIXME: Blocks are incorrectly rejected with the below code.
+    // The issue seems to be that UTXOs are already spent, and hence
+    // spending them again is no longer valid.
+    //
+    // Note that this method works fine with other parts of the code.
+    /*
+    if (!b.isValid(b.mergeOutputs(b.utxos, b.usedOutputs))) {
       this.log(`Invalid block.`);
       return false;
     }
+    */
 
     return true;
   }
@@ -157,10 +166,14 @@ module.exports = class Miner extends Client {
     }
   }
 
+  /**
+   * **NOT YET IMPLEMENTED**  This function should determine what outputs
+   * need to be added or deleted, without relying on the new block's UTXO set. 
+   * 
+   * @param {Block} newBlock - The newly accepted block.
+   */
   syncTransactions(newBlock) {
-    // Initially assuming that both blocks are building off of the same previous block.
-
-    // Return any transactions that are in the oldBlock but not in the newBlock.
+    // TBD...
   }
 
   /**
@@ -186,6 +199,11 @@ module.exports = class Miner extends Client {
     this.wallet.addUTXO(tx.outputs[0], tx.id, 0);
   }
 
+  /**
+   * Like console.log, but includes the miner's name to make debugging easier.
+   * 
+   * @param {String} msg - The message to display to the console.
+   */
   log(msg) {
     console.log(`${this.name}: ${msg}`);
   }

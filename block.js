@@ -52,6 +52,8 @@ module.exports = class Block {
    * Converts a string representation of a block to a new Block instance.
    * We assume that a serialized block intentended for deserialization
    * (in other words, sharing over the network) always includes the UTXOs.
+   * 
+   * @param {string} str - A string representing a block in JSON format.
    */
   static deserialize(str) {
     let b = new Block();
@@ -61,11 +63,8 @@ module.exports = class Block {
     b.proof = o.proof;
     b.chainLength = parseInt(o.chainLength);
 
-    // The UTXOs are a simplification, and should probably be eliminated.
-    // The used outputs are to help with validation, but should also
-    // probably be eliminated.
+    // Serializing the UTXOs simplifies things, but should probably be eliminated.
     b.utxos = o.utxos;
-    b.usedOutputs = o.usedOutputs;
 
     // Transactions need to be recreated and restored in a map.
     b.transactions = new Map();
@@ -105,7 +104,6 @@ module.exports = class Block {
     // Caching unspent transactions for quick lookup.
     // Each block serves as a snapshot of available coins.
     // Note that we need to do a deep clone of the object.
-    //this.utxos = prevBlock ? Object.assign({},prevBlock.utxos) : {};
     this.utxos = prevBlock ? JSON.parse(JSON.stringify(prevBlock.utxos)) : {};
 
     // We track UTXOs used in this block, but can discard them
@@ -146,7 +144,6 @@ module.exports = class Block {
   serialize(includeUTXOs=false) {
     return `{ "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},` +
       (includeUTXOs ? ` "utxos": ${JSON.stringify(this.utxos)},` : '') +
-      (includeUTXOs ? ` "usedOutputs": ${JSON.stringify(this.usedOutputs)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
       ` "target": "${this.target}",` +
@@ -169,7 +166,6 @@ module.exports = class Block {
    * @param {Transaction} tx - The transaction to validate.
    */
   willAcceptTransaction(tx) {
-    // Duplicate transaction or invalid UTXO.
     if (this.transactions.get(tx.id)) {
       //console.log(`${tx.id} is a duplicate`);
       return false;
@@ -183,6 +179,10 @@ module.exports = class Block {
   /**
    * Accepts a new transaction if it is valid.  The validity is determined
    * by the Transaction class.
+   * 
+   * @param {Transaction} tx - The transaction to add to the block.
+   * @param {boolean} forceAccept - Accept the transaction without validating.
+   *      This setting is useful for coinbase transactions.
    */
   addTransaction(tx, forceAccept) {
     if (!forceAccept && !this.willAcceptTransaction(tx)) {
@@ -201,10 +201,6 @@ module.exports = class Block {
 
       // Track how much input was 
       totalInput += txUXTOs[input.outputIndex].amount;
-
-      // We keep track of the used outputs temporarily to simplify validation.
-      if (!this.usedOutputs[tx.id]) this.usedOutputs[tx.id] = [];
-      this.usedOutputs[tx.id][input.outputIndex] = txUXTOs[input.outputIndex];
 
       // Delete the utxo, and the transaction itself if all the outputs are spent.
       delete txUXTOs[input.outputIndex];
@@ -234,7 +230,6 @@ module.exports = class Block {
 
     if (this.coinbaseTX) {
       // Rather than create a new key, we accumulate all rewards in the same transaction.
-      //this.coinbaseTX.outputs[0].amount += fee;
       this.coinbaseTX.addFee(fee);
     }
   }
@@ -264,7 +259,6 @@ module.exports = class Block {
       totalOut += tx.totalOutput();
     });
 
-    console.log(`${totalIn} vs ${totalOut}`);
     return totalIn === totalOut;
   }
 

@@ -24,10 +24,8 @@ module.exports = class Transaction {
    * coinbase transactions.
    * 
    * An output is a pair of an amount of coins and the hash of a
-   * public key, in the form:
+   * public key (also called the address), in the form:
    *  {amount, address}
-   * 
-   * The address is also refered to as an "address".
    * 
    * An input is a triple of a transaction ID, the index of an output
    * within that transaction ID, and the public key that matches the
@@ -114,6 +112,17 @@ module.exports = class Transaction {
     return totalIn >= this.totalOutput();
   }
 
+  /**
+   * This method is used to give an additional reward to the miner for including a
+   * transaction.  All rewards are added to the first output in this transaction.
+   * 
+   * This should only be called on coinbase transactions.
+   * 
+   * Also note the this changes the contents, but not the id.  That means that the
+   * hash of the transaction and the tranasction ID are no longer connected.
+   * 
+   * @param {number} amount - The number of coins offered as a miner reward.
+   */
   addFee(amount) {
     this.outputs[0].amount += amount;
   }

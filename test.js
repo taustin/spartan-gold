@@ -189,47 +189,6 @@ describe("MerkleTree", () => {
 });
 
 describe('Block', function() {
-
-  describe('.deserialize', function() {
-    let aliceWallet = new Wallet();
-    let bobWallet = new Wallet()
-    let b = Block.makeGenesisBlock([
-      { client: {wallet: aliceWallet}, amount: 150 },
-      { client: {wallet: bobWallet}, amount: 90 },
-    ]);
-    b.proof = 42;
-    let s = b.serialize(true);
-    let b2 = Block.deserialize(s);
-    it("should carry over all transactions", function() {
-      assert.equal(Object.keys(b2.transactions).length, Object.keys(b.transactions).length);
-      Object.keys(b.transactions).forEach((k) => {
-        assert.equal(b2.transactions[k], b.transactions[k]);
-      });
-    });
-    it("should carry over UTXO values", function() {
-      /*
-      assert.equal(b2.utxo[alice], b.utxo[alice]);
-      assert.equal(b2.utxo[bob], b.utxo[bob]);
-      assert.equal(b2.utxo[charlie], b.utxo[charlie]);
-      */
-    });
-    it("should carry over all metadata", function() {
-      /*
-      assert.equal(b2.comment, b.comment)
-      assert.equal(b2.prevBlockHash, b.prevBlockHash);
-      assert.equal(b2.timestamp, b.timestamp);
-      assert.equal(b2.target, b.target);
-      assert.equal(b2.proof, b.proof);
-      assert.equal(b2.chainLength, b.chainLength);
-      */
-    });
-    it("should preserved serialized form", function() {
-      /*
-      assert.equal(b2.serialize(), s);
-      */
-    });
-  });
-
   describe('#addTransaction', function() {
     // Slow test.
     /*
