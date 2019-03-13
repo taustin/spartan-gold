@@ -59,7 +59,7 @@ module.exports = class Client extends EventEmitter {
     let { inputs, changeAmt } = this.wallet.spendUTXOs(totalPayments);
     if (changeAmt > 0) {
       let changeAddr = this.wallet.makeAddress();
-      outputs.push({ pubKeyHash: changeAddr, amount: changeAmt });
+      outputs.push({ address: changeAddr, amount: changeAmt });
     }
 
     // Broadcasting the new transaction.
@@ -75,48 +75,10 @@ module.exports = class Client extends EventEmitter {
    */
   receiveOutput(tx) {
     tx.outputs.forEach(output => {
-      if (this.wallet.hasKey(output.pubKeyHash)) {
+      if (this.wallet.hasKey(output.address)) {
         this.wallet.addUTXO(output);
       }
     });
   }
-
-  /*
-  // Broadcasts a request for the balance of an account
-  // from all miners.  If 'id' is not specified, then
-  // the client's account is used by default.
-  requestBalance(id) {
-    id = id || this.keys.id;
-    let msg = { account: id };
-    this.signMessage(msg);
-    this.broadcast(BALANCE, msg);
-  }
-  */
-
-  /*
-  // Signs the 'details' field of the 'msg' object.
-  // The signature is stored in the 'sig' field,
-  // and the public key is stored in the 'pubKey' field.
-  signMessage(msg) {
-    let sig = utils.sign(this.keys.private, msg.details);
-    msg.sig = sig;
-    msg.pubKey = this.keys.public;
-  }
-
-  /*
-   * @param {Object} msg - The message received from another party.
-   * @param {string} msg.pubKey - The public attached to the message.
-   * @param {string} sig - The signature of the message.
-   * @param {Object} details - The contents of the message being signed.
-   */
-  /*
-  verifyMessageSig({pubKey, sig, details}) {
-    if (pubKey && sig && details) {
-      return utils.verifySignature(msg.pubKey, msg.details, msg.sig);
-    } else {
-      return false;
-    }
-  }
-  */
 }
 

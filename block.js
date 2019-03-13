@@ -13,6 +13,9 @@ const COINBASE_AMT_ALLOWED = 25;
 /**
  * A block is a collection of transactions, with a hash connecting it
  * to a previous block.
+ * 
+ * The block also stores a list of UTXOs, organizing them by their
+ * transaction IDs.
  */
 module.exports = class Block {
 
@@ -29,7 +32,7 @@ module.exports = class Block {
     let outputs = [];
     clientInitialFunds.forEach(({ client, amount }) => {
       let addr = client.wallet.makeAddress();
-      let out = { pubKeyHash: addr, amount: amount };
+      let out = { address: addr, amount: amount };
       outputs.push(out);
     });
 
@@ -47,15 +50,31 @@ module.exports = class Block {
 
   /**
    * Converts a string representation of a block to a new Block instance.
+   * We assume that a serialized block intentended for deserialization
+   * (in other words, sharing over the network) always includes the UTXOs.
    */
   static deserialize(str) {
     let b = new Block();
     let o = JSON.parse(str);
-    b.transactions = o.transactions;
     b.prevBlockHash = o.prevBlockHash;
     b.timestamp = o.timestamp;
     b.proof = o.proof;
-    b.chainLength = o.chainLength;
+    b.chainLength = parseInt(o.chainLength);
+
+    // The UTXOs are a simplification, and should probably be eliminated.
+    // The used outputs are to help with validation, but should also
+    // probably be eliminated.
+    b.utxos = o.utxos;
+    b.usedOutputs = o.usedOutputs;
+
+    // Transactions need to be recreated and restored in a map.
+    b.transactions = new Map();
+    o.transactions.forEach(([txID,txJson]) => {
+      let { outputs, inputs } = txJson;
+      let tx = new Transaction({outputs, inputs});
+      tx.id = txID;
+      b.transactions.set(txID, tx);
+    });
     return b;
   }
 
@@ -67,12 +86,13 @@ module.exports = class Block {
    * @param {Block} prevBlock - The previous block in the blockchain.
    * @param {number} target - The POW target.  The miner must find a proof that
    *      produces a smaller value when hashed.
-   * @param {Object} transactions - A map of txIDs -> transactions
    */
-  constructor(rewardAddr, prevBlock, target, transactions) {
+  constructor(rewardAddr, prevBlock, target) {
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.target = target || POW_TARGET;
-    this.transactions = transactions || {};
+
+    // Storing transactions in a Map to preserve key order.
+    this.transactions = new Map();
 
     // Used to determine the winner between competing chains.
     // Note that this is a little simplistic -- an attacker
@@ -83,12 +103,18 @@ module.exports = class Block {
     this.timestamp = Date.now();
 
     // Caching unspent transactions for quick lookup.
-    // Each block serves as a snapshot of available coins
-    this.utxos = prevBlock ? Object.assign({},prevBlock.utxos) : {};
+    // Each block serves as a snapshot of available coins.
+    // Note that we need to do a deep clone of the object.
+    //this.utxos = prevBlock ? Object.assign({},prevBlock.utxos) : {};
+    this.utxos = prevBlock ? JSON.parse(JSON.stringify(prevBlock.utxos)) : {};
+
+    // We track UTXOs used in this block, but can discard them
+    // after the block has been validated.
+    this.usedOutputs = {};
 
     // Add the initial coinbase reward.
     if (rewardAddr) {
-      let output = { pubKeyHash: rewardAddr, amount: COINBASE_AMT_ALLOWED};
+      let output = { address: rewardAddr, amount: COINBASE_AMT_ALLOWED};
       // The coinbase transaction will be updated to capture transaction fees.
       this.coinbaseTX = new Transaction({ outputs: [output] });
       this.addTransaction(this.coinbaseTX, true);
@@ -117,9 +143,10 @@ module.exports = class Block {
   /**
    * Converts a Block into string form.  Some fields are deliberately omitted.
    */
-  serialize() {
-    return `{ "transactions": ${JSON.stringify(this.transactions)},` +
-      `"comment": "${this.comment}",` +
+  serialize(includeUTXOs=false) {
+    return `{ "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},` +
+      (includeUTXOs ? ` "utxos": ${JSON.stringify(this.utxos)},` : '') +
+      (includeUTXOs ? ` "usedOutputs": ${JSON.stringify(this.usedOutputs)},` : '') +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
       ` "target": "${this.target}",` +
@@ -135,19 +162,35 @@ module.exports = class Block {
   }
 
   /**
+   * Determines whether the block would accept the transaction.
+   * A block will accept a transaction if it is not a duplicate
+   * and all inputs are valid (meaning they have a matching UTXO).
+   * 
+   * @param {Transaction} tx - The transaction to validate.
+   */
+  willAcceptTransaction(tx) {
+    // Duplicate transaction or invalid UTXO.
+    if (this.transactions.get(tx.id)) {
+      //console.log(`${tx.id} is a duplicate`);
+      return false;
+    } else if (!tx.isValid(this.utxos)) {
+      //console.log(`${tx.id} is invalid`);
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Accepts a new transaction if it is valid.  The validity is determined
    * by the Transaction class.
    */
   addTransaction(tx, forceAccept) {
-    if (!forceAccept && !tx.isValid(this.utxos)) {
+    if (!forceAccept && !this.willAcceptTransaction(tx)) {
       throw new Error(`Transaction ${tx.id} is invalid.`);
     }
 
-    // Duplicate transaction.
-    if (this.transactions[tx.id]) return;
-
     // Store the transaction.
-    this.transactions[tx.id] = tx;
+    this.transactions.set(tx.id, tx);
 
     // We need the total input to determine the miner's transaction fee.
     let totalInput = 0;
@@ -157,7 +200,11 @@ module.exports = class Block {
       let txUXTOs = this.utxos[input.txID];
 
       // Track how much input was 
-      totalInput += txUXTOs[input.outputIndex];
+      totalInput += txUXTOs[input.outputIndex].amount;
+
+      // We keep track of the used outputs temporarily to simplify validation.
+      if (!this.usedOutputs[tx.id]) this.usedOutputs[tx.id] = [];
+      this.usedOutputs[tx.id][input.outputIndex] = txUXTOs[input.outputIndex];
 
       // Delete the utxo, and the transaction itself if all the outputs are spent.
       delete txUXTOs[input.outputIndex];
@@ -173,40 +220,57 @@ module.exports = class Block {
     });
 
     // Add transaction fee
-    this.addTransactionFee(tx.totalOutput() - totalInput);
+    this.addTransactionFee(totalInput - tx.totalOutput());
   }
 
+  /**
+   * Adds the transaction fee to the miner's coinbase transaction.
+   *
+   * @param {number} fee - The miner's reward for including a given transaction.
+   */
   addTransactionFee(fee) {
     // Either the transaction was a coinbase transaction, or there was no transaction fee.
     if (fee <= 0) return;
 
     if (this.coinbaseTX) {
       // Rather than create a new key, we accumulate all rewards in the same transaction.
-      this.coinbaseTX.outputs[0].amount += fee;
+      //this.coinbaseTX.outputs[0].amount += fee;
+      this.coinbaseTX.addFee(fee);
     }
-
   }
 
   /**
    * A block is valid if all transactions (except for the coinbase transaction) are
    * valid and the total outputs equal the total inputs plus the coinbase reward.
    */
-  isValid() {
+  isValid(utxos=this.utxos) {
     // The genesis block is automatically valid.
     if (this.isGenesisBlock()) return true;
 
+    // Calculating total inputs.
     let totalIn = COINBASE_AMT_ALLOWED;
-    let totalOut = this.coinbaseTX.totalOutput();
+    this.transactions.forEach((tx) => {
+      tx.inputs.forEach((input, txID) => {
+        let txUXTOs = utxos[txID];
+        if (txUXTOs[input.outputIndex]) {
+          totalIn += txUXTOs[input.outputIndex].amount;
+        }
+      });
+    });
 
-    // Skipping coinbase transaction
-    for (let i=1; i<this.transactions.length; i++) {
-      let tx = this.transactions[i];
+    // Calculating total outputs.
+    let totalOut = 0;
+    this.transactions.forEach((tx) => {
       totalOut += tx.totalOutput();
-    }
-    //console.log(`in: ${totalIn}, out: ${totalOut}`)
+    });
+
+    console.log(`${totalIn} vs ${totalOut}`);
     return totalIn === totalOut;
   }
 
+  /**
+   * Prints out the value of all UTXOs in the system.
+   */
   displayUTXOs() {
     Object.keys(this.utxos).forEach(txID => {
       let txUTXOs = this.utxos[txID];

@@ -1,82 +1,91 @@
 "use strict";
 
-let EventEmitter = require('events');
-let fs = require('fs');
-
 let Block = require('./block.js');
 let Client = require('./client.js');
-
-let utils = require('./utils.js');
-
 
 const NUM_ROUNDS_MINING = 2000;
 
 const PROOF_FOUND = "PROOF_FOUND";
 const START_MINING = "START_MINING";
 const POST_TRANSACTION = "POST_TRANSACTION";
-const BALANCE = "GET_BALANCE";
-// Miners are clients, but they also mine blocks
-// looking for "proofs".
+
+/**
+ * Miners are clients, but they also mine blocks looking for "proofs".
+ * 
+ * Each miner stores a map of blocks, where the hash of the block
+ * is the key.
+ */
 module.exports = class Miner extends Client {
-  constructor(broadcast, keys, startingBlock) {
-    super(broadcast, keys);
+  /**
+   * When a new miner is created, but the PoW search is **not** yet started.
+   * The initialize method kicks things off.
+   * 
+   * @param {function} broadcast - The function that the miner will use
+   *      to send messages to all other clients.
+   */
+  constructor(name, broadcast) {
+    super(broadcast);
+
+    // Used for debugging only.
+    this.name = name;
 
     this.previousBlocks = {};
-    this.currentBlock = startingBlock;
-    this.startNewSearch();
   }
 
-  // Starts listeners, and begin mining.
-  initialize() {
-    let minerId = ""
+  /**
+   * Starts listeners and begins mining.
+   */
+  initialize(startingBlock) {
+    this.currentBlock = startingBlock;
+    this.startNewSearch();
+
     this.on(START_MINING, this.findProof);
-    this.on(PROOF_FOUND, (o) => {
-      if (!this.verifyMessageSig(o)){
-        return;
-      }
-      let obj = JSON.parse(o.details.block)
-      let trans = Object.values(obj.transactions)[0]
-      minerId = Object.keys(trans.txDetails.output)[0]
-      this.receiveBlock(o.details.block);
-    });
-    this.on(POST_TRANSACTION, (o) => {
-      if (!this.verifyMessageSig(o)){
-        return;
-      }
-      this.addTransaction(o.details.transaction, o.details.transaction.comment, o.pubKey, minerId);
-    });
-    this.on(BALANCE, (o) => {
-      if (!this.verifyMessageSig(o)){
-        return;
-      }
-      let msg = {details: { account: account, balance: balance}};
-      this.signMessage(msg);
-      let balance = this.getBalance(o.account);
-    });
+    this.on(PROOF_FOUND, this.receiveBlock);
+    this.on(POST_TRANSACTION, this.addTransaction);
+
     this.emit(START_MINING);
   }
 
-  // Sets up the miner to start searching for a new block
-  startNewSearch() {
-    let b = new Block(this.currentBlock);
+  /**
+   * Sets up the miner to start searching for a new block.
+   * 
+   * @param {boolean} reuseRewardAddress - If set, the miner's previous
+   *      coinbase reward address will be reused.
+   */
+  startNewSearch(reuseRewardAddress=false) {
+    // Creating a new address for receiving coinbase rewards.
+    // We reuse the old address if 
+    if (!reuseRewardAddress) {
+      this.rewardAddress = this.wallet.makeAddress();
+    }
+
+    // Create a new block, chained to the previous block.
+    let b = new Block(this.rewardAddress, this.currentBlock);
+
+    // Store the previous block, and then switch over to the new block.
     this.previousBlocks[b.prevBlockHash] = this.currentBlock;
     this.currentBlock = b;
-    let output = {};
-    output[this.keys.id] = 1;
-    let cbTrans = utils.makeTransaction(this.keys.private, output);
-    this.currentBlock.addTransaction(cbTrans, true);
+
+    // Start looking for a proof at 0.
     this.currentBlock.proof = 0;
   }
 
-  // Looks for a "proof".  It breaks after some time to listen
-  // for messages.  (We need to do this since JS does not support
-  // concurrency).  The 'oneAndDone' field is used for testing only;
-  // It prevents the findProof method from looking for the proof
-  // again after the first attempt.
-  findProof(oneAndDone) {
+  /**
+   * Looks for a "proof".  It breaks after some time to listen for messages.  (We need
+   * to do this since JS does not support concurrency).
+   * 
+   * The 'oneAndDone' field is used
+   * for testing only; it prevents the findProof method from looking for the proof again
+   * after the first attempt.
+   * 
+   * @param {boolean} oneAndDone - Give up after the first PoW search (testing only).
+   */
+  findProof(oneAndDone=false) {
     let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.verifyProof()) {
+        this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
+        this.reapRewards();
         this.announceProof();
         this.startNewSearch();
         break;
@@ -86,64 +95,98 @@ module.exports = class Miner extends Client {
     // If we are testing, don't continue the search.
     if (!oneAndDone) {
       // Check if anyone has found a block, and then return to mining.
-      setTimeout(() => this.emit(START_MINING, this.findProof), 0);
+      setTimeout(() => this.emit(START_MINING), 0);
     }
   }
 
-  // Broadcast the block, with a valid proof included.
+  /**
+   * Broadcast the block, with a valid proof included.
+   */
   announceProof() {
-    let msg = {details: {block: this.currentBlock.serialize()}};
-    this.signMessage(msg);
-    this.broadcast(PROOF_FOUND, msg);
+    this.broadcast(PROOF_FOUND, this.currentBlock.serialize(true));
   }
 
-  // Returns true if the block's proof is valid.
+  /**
+   * Verifies if a blocks proof is valid and all of its
+   * transactions are valid.
+   * 
+   * @param {Block} b - The new block to be verified.
+   */
   isValidBlock(b) {
-    if (!b.verifyProof()) return false;
-    // FIXME: Validate all transactions.
-  }
-
-  // Receives a block from another miner.
-  // If it is valid, the block will be stored.
-  // If it is also a longer chain, the miner will
-  // accept it and replace the currentBlock.
-  receiveBlock(s) {
-    let b = Block.deserialize(s);
-    if (!this.isValidBlock(b)) {
-      return false;
-    }
-    // If we don't have it, we store it in case we need it later.
-    if (!!this.previousBlocks[b.hashVal()]) {
-      this.previousBlocks[b.hashVal()] = b;
-      // FIXME: May need to recover older blocks in this case.
-    }
-    // We switch over to the new chain only if it is better.
-    if (b.chainLength >= this.currentBlock.chainLength) {
-      // FIXME: Need to sync up missing transactions
-      this.currentBlock = b;
-      this.startNewSearch();
-    }
-  }
-
-  // Returns false if transaction is not accepted.
-  // Otherwise adds transaction to current block.
-  addTransaction(tx, comment, pubKey, minerId) {
-    if (!this.currentBlock.legitTransaction(tx)) {
-      return false;
-    }
-    if (!utils.verifySignature(pubKey, tx.txDetails, tx.sig)) {
-      return false;
-    }
-    if (utils.calcId(pubKey) !== tx.txDetails.input) {
+    // FIXME: Should verify that a block chains back to a previously accepted block.
+    if (!b.verifyProof()) {
+      this.log(`Invalid proof.`);
       return false;
     }
 
-    this.currentBlock.addTransaction(tx, comment, minerId);
+    // Validating with the used outputs, rather than the unspent outputs.
+    if (!b.isValid(b.usedOutputs)) {
+      this.log(`Invalid block.`);
+      return false;
+    }
+
     return true;
   }
 
-  // Returns the balance of coins for the specified ID.
-  getBalance(id) {
-    return this.currentBlock.balance(id);
+  /**
+   * Receives a block from another miner. If it is valid,
+   * the block will be stored. If it is also a longer chain,
+   * the miner will accept it and replace the currentBlock.
+   * 
+   * @param {string} s - The block in serialized form.
+   */
+  receiveBlock(s) {
+    let b = Block.deserialize(s);
+    // FIXME: should not rely on the other block for the utxos.
+    if (!this.isValidBlock(b)) {
+      this.log(`rejecting invalid block: ${s}`);
+      return false;
+    }
+
+    // If we don't have it, we store it in case we need it later.
+    if (!this.previousBlocks[b.hashVal()]) {
+      this.previousBlocks[b.hashVal()] = b;
+    }
+
+    // We switch over to the new chain only if it is better.
+    if (b.chainLength > this.currentBlock.chainLength) {
+      this.log(`cutting over to new chain.`);
+      this.syncTransactions(b);
+      this.currentBlock = b;
+      this.startNewSearch(true);
+    }
+  }
+
+  syncTransactions(newBlock) {
+    // Initially assuming that both blocks are building off of the same previous block.
+
+    // Return any transactions that are in the oldBlock but not in the newBlock.
+  }
+
+  /**
+   * Returns false if transaction is not accepted. Otherwise adds
+   * the transaction to the current block.
+   * 
+   * @param {Transaction} tx - The transaction to add.
+   */
+  addTransaction(tx) {
+    if (!this.currentBlock.willAcceptTransaction(tx)) {
+      return false;
+    }
+    // FIXME: Toss out duplicate transactions, but store pending transactions.
+    this.currentBlock.addTransaction(tx);
+    return true;
+  }
+
+  /**
+   * After finding a proof, collect the mining rewards.
+   */
+  reapRewards() {
+    let tx = this.currentBlock.coinbaseTX;
+    this.wallet.addUTXO(tx.outputs[0], tx.id, 0);
+  }
+
+  log(msg) {
+    console.log(`${this.name}: ${msg}`);
   }
 }

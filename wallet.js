@@ -53,10 +53,13 @@ module.exports = class Wallet {
    * @param {number} outputIndex - The index of the output in the transaction.
    */
   addUTXO(utxo, txID, outputIndex) {
-    if (this.addresses[utxo.pubKeyHash] === undefined) {
-      throw new Error(`Wallet does not have key for ${utxo.pubKeyHash}`);
+    if (this.addresses[utxo.address] === undefined) {
+      throw new Error(`Wallet does not have key for ${utxo.address}`);
     }
-    this.coins.push({
+
+    // We store the coins in a queue, so that we spend the oldest
+    // (and most likely finalized) first.
+    this.coins.unshift({
       output: utxo,
       txID: txID,
       outputIndex: outputIndex,
@@ -92,7 +95,7 @@ module.exports = class Wallet {
       let { output, txID, outputIndex } = this.coins.pop();
       amount -= output.amount;
       // Creating the needed input
-      let kp = this.addresses[output.pubKeyHash];
+      let kp = this.addresses[output.address];
       let input = {
         txID: txID,
         outputIndex: outputIndex,
@@ -126,9 +129,9 @@ module.exports = class Wallet {
    * This function allows a client to check if a broadcast output
    * should be added to the client's wallet.
    * 
-   * @param {String} pubKeyHash - The hash of the public key identifying an address.
+   * @param {String} address - The hash of the public key identifying an address.
    */
-  hasKey(pubKeyHash) {
-    return !!this.addresses[pubKeyHash];
+  hasKey(address) {
+    return !!this.addresses[address];
   }
 }

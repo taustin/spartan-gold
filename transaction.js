@@ -25,9 +25,9 @@ module.exports = class Transaction {
    * 
    * An output is a pair of an amount of coins and the hash of a
    * public key, in the form:
-   *  {amount, pubKeyHash}
+   *  {amount, address}
    * 
-   * The pubKeyHash is also refered to as an "address".
+   * The address is also refered to as an "address".
    * 
    * An input is a triple of a transaction ID, the index of an output
    * within that transaction ID, and the public key that matches the
@@ -43,8 +43,9 @@ module.exports = class Transaction {
     this.inputs = inputs;
     this.outputs = outputs;
 
-    this.timestamp = Date.now();
-
+    // The id is determined at creation and remains constant,
+    // even if outputs change.  (This case should only come up
+    // with coinbase transactions).
     this.id = utils.hash("" + JSON.stringify({inputs, outputs}));
   }
 
@@ -61,8 +62,8 @@ module.exports = class Transaction {
       throw new Error(`Transaction id of input was ${txID}, but this transaction's id is ${this.id}`);
     }
     let output = this.outputs[outputIndex];
-    let {amount, pubKeyHash} = output;
-    if (utils.calcAddress(pubKey) !== pubKeyHash) {
+    let {amount, address} = output;
+    if (utils.calcAddress(pubKey) !== address) {
       throw new Error(`Public key does not match its hash for tx ${this.id}, output ${outputIndex}.`);
     } else if (!utils.verifySignature(pubKey, output, sig)) {
       throw new Error(`Invalid signature for ${this.id}, outpout ${outputIndex}.`);
@@ -77,7 +78,7 @@ module.exports = class Transaction {
    * 
    * A transaction is valid if the sum of the UTXOs matching the inputs
    * must be at least as large as the sum out the outputs.  Also, the
-   * signatures of the inputs must be valid and match the pubKeyHash
+   * signatures of the inputs must be valid and match the address
    * specified in the corresponding UTXOs.
    * 
    * Note that coinbase transactions are **not** valid according to this
@@ -103,7 +104,7 @@ module.exports = class Transaction {
       }
 
       // Make sure the UTXO matches the input.
-      if (utils.calcAddress(pubKey) !== utxo.pubKeyHash) {
+      if (utils.calcAddress(pubKey) !== utxo.address) {
         return false;
       }
 
@@ -111,6 +112,10 @@ module.exports = class Transaction {
       totalIn += utxo.amount;
     }
     return totalIn >= this.totalOutput();
+  }
+
+  addFee(amount) {
+    this.outputs[0].amount += amount;
   }
 
   /**

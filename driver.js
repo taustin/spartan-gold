@@ -2,95 +2,63 @@
 
 let Block = require('./block.js');
 let Client = require('./client.js');
-//let Miner = require('./miner.js');
+let Miner = require('./miner.js');
 
-let utils = require('./utils.js');
 let fakeNet = require('./fakeNet.js');
 
+// Clients
 let alice = new Client(fakeNet.broadcast);
 let bob = new Client(fakeNet.broadcast);
 let charlie = new Client(fakeNet.broadcast);
 
+// Miners
+let minnie = new Miner("Minnie", fakeNet.broadcast);
+let mickey = new Miner("Mickey", fakeNet.broadcast);
+
+console.log("Starting simulation.  This may take a moment...");
+
 let genesis = Block.makeGenesisBlock([
   { client: alice, amount: 133},
   { client: bob, amount: 99},
-  { client: charlie, amount: 50},
+  { client: charlie, amount: 67},
+  { client: minnie, amount: 400},
+  { client: mickey, amount: 322},
 ]);
 
+console.log("Initial balances:");
 console.log(`Alice has ${alice.wallet.balance} coins.`);
 console.log(`Bob has ${bob.wallet.balance} coins.`);
 console.log(`Charlie has ${charlie.wallet.balance} coins.`);
-
-fakeNet.register(alice, bob, charlie);
-
-let bobAddr = bob.wallet.makeAddress();
-alice.postTransaction([{ amount: 40, pubKeyHash: bobAddr }]);
-
+console.log(`Minnie has ${minnie.wallet.balance} coins.`);
+console.log(`Mickey has ${mickey.wallet.balance} coins.`);
 console.log();
-console.log("After a transaction:");
-console.log(`Alice has ${alice.wallet.balance} coins.`);
-console.log(`Charlie has ${charlie.wallet.balance} coins.`);
 
-/*
-// Creating a genesis block and miners.
-const GENESIS_BLOCK = new Block();
+fakeNet.register(alice, bob, charlie, minnie, mickey);
 
-//Generating keypairs for Clients - Alice, Bob & Charlie
-// Miners - Mike & Mini
-let ak = utils.generateKeypair();
-let bk = utils.generateKeypair();
-let ck = utils.generateKeypair();
-//Add miners
-let mk = utils.generateKeypair();
-let mn = utils.generateKeypair();
+// Miners start mining.
+minnie.initialize(genesis);
+mickey.initialize(genesis);
 
-
-GENESIS_BLOCK.utxo[utils.calcId(ak.public)] = 133;
-GENESIS_BLOCK.utxo[utils.calcId(bk.public)] = 49;
-GENESIS_BLOCK.utxo[utils.calcId(ck.public)] = 16;
-GENESIS_BLOCK.utxo[utils.calcId(mk.public)] = 4;
-GENESIS_BLOCK.utxo[utils.calcId(mn.public)] = 12;
-
-
-let alice = new Client(fakeNet.broadcast, ak);
-let bob = new Client(fakeNet.broadcast, bk);
-let charlie = new Client(fakeNet.broadcast, ck);
-let mike = new Miner(fakeNet.broadcast, mk, GENESIS_BLOCK);
-let mini = new Miner(fakeNet.broadcast, mn, GENESIS_BLOCK);
-
-
-fakeNet.registerMiner(mike);
-fakeNet.registerMiner(mini);
-
-
-// Makes transactions for transferring money between the three parties.
-function transfer(sender, a, b, c) {
-  let output = {};
-  output[alice.keys.id] = a;
-  output[bob.keys.id] = b;
-  output[charlie.keys.id] = c;
-  sender.postTransaction(output);
-}
-
-
-console.log("Initial balances");
-console.log(mike.currentBlock.utxo)
-console.log(mini.currentBlock.utxo)
-
-
-console.log("Beginning to mine");
-
-mike.initialize()
-mini.initialize()
-
-
-transfer(alice, 100, 20, 12);
-
+// Alice transfers some money to Bob.
+let bobAddr = bob.wallet.makeAddress();
+console.log(`Alice is transfering 40 coins to ${bobAddr}`);
+alice.postTransaction([{ amount: 40, address: bobAddr }]);
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
-  console.log(mike.currentBlock.utxo)
-  console.log(mini.currentBlock.utxo)
+  console.log();
+  console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}, with the following UTXOs:`);
+  minnie.currentBlock.displayUTXOs();
 
-}, 5000);
-*/
+  console.log();
+  console.log(`Mickey has a chain of length ${minnie.currentBlock.chainLength}, with the following UTXOs:`);
+  mickey.currentBlock.displayUTXOs();
+
+  console.log();
+  console.log("Final wallets:");
+  console.log(`Alice has ${alice.wallet.balance} coins.`);
+  console.log(`Bob has ${bob.wallet.balance} coins.`);
+  console.log(`Charlie has ${charlie.wallet.balance} coins.`);
+  console.log(`Minnie has ${minnie.wallet.balance} coins.`);
+  console.log(`Mickey has ${mickey.wallet.balance} coins.`);
+}, 10000);

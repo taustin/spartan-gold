@@ -36,21 +36,3 @@ exports.calcAddress = function(key) {
   return addr;
 }
 
-exports.makeTransaction = function(privKey, output, input) {
-  let tx = {};
-  tx.txDetails = {
-    'output': output,
-  };
-  if (input) {
-    tx.txDetails.input = input;
-    /*
-    tx.comment = input + " transacts"
-    for(let key in output){
-      tx.comment += " " + key + ":" + output[key]
-    }
-    */
-  }
-  tx.timestamp = Date.now();
-  tx.sig = exports.sign(privKey, tx.txDetails);
-  return tx;
-}

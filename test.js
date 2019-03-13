@@ -17,19 +17,9 @@ const kp = utils.generateKeypair();
 const newKeypair = utils.generateKeypair();
 
 // Adding a POW target that should be trivial to match.
-const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+//const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
 
 describe('utils', function() {
-
-  /*
-  describe('.makeTransaction', function() {
-    it('should include a valid signature', function() {
-      let tx = utils.makeTransaction(kp.private, {bob: 12, charlie: 5}, "alice");
-      assert.ok(utils.verifySignature(kp.public, tx.txDetails, tx.sig));
-    });
-  });
-*/
-
   describe('.verifySignature', function() {
     let sig = utils.sign(kp.private, "hello");
     it('should accept a valid signature', function() {
@@ -43,10 +33,10 @@ describe('utils', function() {
 
 describe("Transaction", () => {
   describe("#spendOutput", () => {
-    let pubKeyHash = utils.calcAddress(kp.public);
+    let address = utils.calcAddress(kp.public);
     let tx = new Transaction({
       inputs: [],
-      outputs: [{amount: 42, pubKeyHash: pubKeyHash}],
+      outputs: [{amount: 42, address: address}],
     });
     it("should return the amount of tokens in the output if the input matches the output.", () => {
       let nextInput = {
@@ -81,11 +71,11 @@ describe("Transaction", () => {
     });
   });
   describe("#isValid", () => {
-    let pubKeyHash = utils.calcAddress(kp.public);
+    let address = utils.calcAddress(kp.public);
     let cbTX = new Transaction({
       coinBaseReward: 1,
-      outputs: [{amount: 1, pubKeyHash: pubKeyHash},
-                {amount: 42, pubKeyHash: pubKeyHash}],
+      outputs: [{amount: 1, address: address},
+                {amount: 42, address: address}],
     });
     let utxos = {};
     utxos[cbTX.id] = cbTX.outputs;
@@ -95,13 +85,13 @@ describe("Transaction", () => {
       pubKey: kp.public,
       sig: utils.sign(kp.private, cbTX.outputs[1]),
     };
-    let newPubKeyHash = utils.calcAddress(newKeypair.public);
+    let newAddress = utils.calcAddress(newKeypair.public);
 
     it("should consider a transaction valid if the outputs do not exceed the inputs", () => {
       let tx = new Transaction({
         inputs: [input],
-        outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
-                  {amount: 10, pubKeyHash: pubKeyHash}],
+        outputs: [{amount: 20, address: newAddress},
+                  {amount: 10, address: address}],
       });
       assert.isTrue(tx.isValid(utxos));
     });
@@ -109,8 +99,8 @@ describe("Transaction", () => {
     it("should consider a transaction invalid if the outputs exceed the inputs", () => {
       let tx = new Transaction({
         inputs: [input],
-        outputs: [{amount: 20, pubKeyHash: newPubKeyHash},
-                  {amount: 30, pubKeyHash: pubKeyHash}],
+        outputs: [{amount: 20, address: newAddress},
+                  {amount: 30, address: address}],
       });
       assert.isFalse(tx.isValid(utxos));
     });
@@ -124,7 +114,7 @@ describe("Transaction", () => {
       };
       let tx = new Transaction({
         inputs: [badInput],
-        outputs: [{amount: 40, pubKeyHash: newPubKeyHash}],
+        outputs: [{amount: 40, address: newAddress}],
       });
       assert.isFalse(tx.isValid(utxos));
     });
@@ -135,8 +125,8 @@ describe("Wallet", () => {
   describe("#balance", () => {
     let w = new Wallet();
     let addr = w.makeAddress();
-    let utxo1 = { amount: 42, pubKeyHash: addr };
-    let utxo2 = { amount: 25, pubKeyHash: addr };
+    let utxo1 = { amount: 42, address: addr };
+    let utxo2 = { amount: 25, address: addr };
     let tx = new Transaction({
       inputs: [],
       outputs: [utxo1, utxo2],
@@ -150,8 +140,8 @@ describe("Wallet", () => {
   describe("#spendUTXOs", () => {
     let w = new Wallet();
     let addr = w.makeAddress();
-    let utxo1 = { amount: 42, pubKeyHash: addr };
-    let utxo2 = { amount: 25, pubKeyHash: addr };
+    let utxo1 = { amount: 42, address: addr };
+    let utxo2 = { amount: 25, address: addr };
     let tx = new Transaction({
       inputs: [],
       outputs: [utxo1, utxo2],
@@ -199,6 +189,47 @@ describe("MerkleTree", () => {
 });
 
 describe('Block', function() {
+
+  describe('.deserialize', function() {
+    let aliceWallet = new Wallet();
+    let bobWallet = new Wallet()
+    let b = Block.makeGenesisBlock([
+      { client: {wallet: aliceWallet}, amount: 150 },
+      { client: {wallet: bobWallet}, amount: 90 },
+    ]);
+    b.proof = 42;
+    let s = b.serialize(true);
+    let b2 = Block.deserialize(s);
+    it("should carry over all transactions", function() {
+      assert.equal(Object.keys(b2.transactions).length, Object.keys(b.transactions).length);
+      Object.keys(b.transactions).forEach((k) => {
+        assert.equal(b2.transactions[k], b.transactions[k]);
+      });
+    });
+    it("should carry over UTXO values", function() {
+      /*
+      assert.equal(b2.utxo[alice], b.utxo[alice]);
+      assert.equal(b2.utxo[bob], b.utxo[bob]);
+      assert.equal(b2.utxo[charlie], b.utxo[charlie]);
+      */
+    });
+    it("should carry over all metadata", function() {
+      /*
+      assert.equal(b2.comment, b.comment)
+      assert.equal(b2.prevBlockHash, b.prevBlockHash);
+      assert.equal(b2.timestamp, b.timestamp);
+      assert.equal(b2.target, b.target);
+      assert.equal(b2.proof, b.proof);
+      assert.equal(b2.chainLength, b.chainLength);
+      */
+    });
+    it("should preserved serialized form", function() {
+      /*
+      assert.equal(b2.serialize(), s);
+      */
+    });
+  });
+
   describe('#addTransaction', function() {
     // Slow test.
     /*
@@ -214,7 +245,7 @@ describe('Block', function() {
       let { inputs } = aliceWallet.spendUTXOs(25);
       let tx = new Transaction({
         inputs: inputs,
-        outputs: [ { pubKeyHash: bobWallet.makeAddress(), amount: 20 } ],
+        outputs: [ { address: bobWallet.makeAddress(), amount: 20 } ],
       });
       gb.addTransaction(tx);
       bobWallet.addUTXO(tx.outputs[0], tx.id, 0);
@@ -224,211 +255,3 @@ describe('Block', function() {
     //*/
   });
 });
-
-/*
-describe('Client', function() {
-  describe('.constructor', function() {
-    let client = new Client();
-    it("should generate a keypair if none is given", function() {
-      assert.ok(!!client.keys);
-      assert.ok(!!client.keys.public);
-      assert.ok(!!client.keys.private);
-    });
-    it("should calculate an id field", function() {
-      assert.ok(!!client.keys.id);
-    });
-  });
-
-  describe('#postTransaction', function() {
-    let client = new Client(null,kp);
-    it("should broadcast a message", function() {
-      let broadcastCalled = false;
-      client.broadcast = function() {
-        broadcastCalled = true;
-      };
-      client.postTransaction({alice: 10});
-      assert.ok(broadcastCalled);
-    });
-    it("should broadcast a signed message object", function() {
-      client.broadcast = function(msg, o) {
-        assert.ok(!!o.sig);
-        assert.ok(!!o.pubKey);
-      };
-      client.postTransaction({alice: 10});
-    });
-    it("should broadcast a signed transaction", function() {
-      client.broadcast = function(msg, o) {
-        assert.ok(!!o.details);
-        assert.ok(utils.verifySignature(o.pubKey, o.details.transaction.txDetails, o.details.transaction.sig));
-      };
-      client.postTransaction({alice: 10});
-    });
-  });
-
-  describe('#requestBalance', function() {
-    let client = new Client(null,kp);
-    it("should broadcast a message", function() {
-      let broadcastCalled = false;
-      client.broadcast = function() {
-        broadcastCalled = true;
-      };
-      client.requestBalance();
-      assert.ok(broadcastCalled);
-    });
-    it("should broadcast a signed message object", function() {
-      client.broadcast = function(msg, o) {
-        assert.ok(!!o.sig);
-        assert.ok(!!o.pubKey);
-      };
-      client.requestBalance();
-    });
-    it("should request balance for the specified ID", function() {
-      client.broadcast = function(msg, o) {
-        assert.equal(o.account, "face0ff");
-      };
-      client.requestBalance("face0ff");
-    });
-    it("should request balance for client's ID by default", function() {
-      client.broadcast = function(msg, o) {
-        assert.equal(o.account, client.keys.id);
-      };
-      client.requestBalance();
-    });
-  });
-
-  describe('#signMessage', function() {
-    let client = new Client(null,kp);
-    let msg = { details: 42 };
-    client.signMessage(msg);
-    it("should attack a 'sig' field to the message", function() {
-      assert.ok(!!msg.sig);
-    });
-    it("should attack a 'pubKey' field to the message", function() {
-      assert.ok(!!msg.pubKey);
-    });
-  });
-
-  describe('#verifyMessageSig', function() {
-    let client = new Client(null,kp);
-    let msg = { details: 42 };
-    client.signMessage(msg);
-    it("should accept valid, signed messages", function() {
-      assert.ok(client.verifyMessageSig(msg));
-    });
-    it("should reject messages with invalid signatures", function() {
-      // Tampering with message so that signature is invalid.
-      msg.details++;
-      assert.ok(!client.verifyMessageSig(msg));
-    });
-  });
-});
-
-describe('Miner', function() {
-  let newGen = new Block();
-  let account = utils.calcAddress(kp.public);
-  newGen.utxo[account] = 100;
-
-  describe('.constructor', function() {
-    let miner = new Miner(null, kp);
-    it("should create a new 'currentBlock'", function() {
-      assert.ok(miner.currentBlock);
-    });
-    it("should add a new coinbase transaction to currentBlock", function() {
-      let b = miner.currentBlock;
-      assert.equal(Object.keys(b.transactions).length, 1);
-      let tid = Object.keys(b.transactions)[0];
-      assert.equal(b.transactions[tid].txDetails.output[miner.keys.id], 1);
-    });
-  });
-
-  describe('#announceProof', function() {
-    let miner = new Miner(null, kp);
-    it("should call broadcast", function() {
-      let broadcastCalled = false;
-      miner.broadcast = function() {
-        broadcastCalled = true;
-      };
-      miner.announceProof();
-      assert.ok(broadcastCalled);
-    });
-    it("should sign the message", function() {
-      miner.broadcast = function(msg, o) {
-        assert.ok(!!o.sig);
-        assert.ok(!!o.pubKey);
-      };
-      miner.announceProof();
-    });
-    it("should include currentBlock", function() {
-    });
-  });
-
-  describe('#receiveBlock', function() {
-    it("should reject shorter blockchains", function() {
-      // FIXME: Need to set up this test.
-    });
-    it("should reject invalid blocks", function() {
-      // FIXME: Need to set up this test.
-    });
-    it("should update currentBlock if the new block is better", function() {
-      // FIXME: Need to set up this test.
-    });
-  });
-
-  describe('#addTransaction', function() {
-    it("should add a valid transaction to currentBlock", function() {
-      let miner = new Miner(null, kp, newGen);
-      let output = { alice: 42 };
-      let numTrans = Object.keys(miner.currentBlock.transactions).length;
-      let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, tx.comment, kp.public);
-      let newNumTrans = Object.keys(miner.currentBlock.transactions).length;
-      assert.equal(newNumTrans, numTrans + 1);
-    });
-    it("should update the utxo for the currentBlock with a valid transaction", function() {
-      let miner = new Miner(null, kp, newGen);
-      let output = { alice: 42, bob: 50 };
-      let tx = utils.makeTransaction(kp.private, output, account);
-      miner.addTransaction(tx, tx.comment, kp.public);
-      assert.equal(miner.getBalance("alice"), 42);
-      assert.equal(miner.getBalance("bob"), 50);
-    });
-    it("should reject an invalid transaction", function() {
-      let miner = new Miner(null, kp, newGen);
-      let output = { alice: 40000, bob: 50 };
-      let tx = utils.makeTransaction(kp.private, output, account);
-      assert.ok(!miner.addTransaction(tx, kp.public));
-    });
-    it("should reject a transaction without a valid signature", function() {
-      let miner = new Miner(null, kp, newGen);
-      let output = { alice: 40, bob: 50 };
-      let tx = utils.makeTransaction(kp.private, output, account);
-      // Tampering with amount for bob
-      tx.txDetails.output['bob'] += 1;
-      assert.ok(!miner.addTransaction(tx, tx.comment, kp.public));
-    });
-    it("should reject a transaction where the signature does not match the ID", function() {
-      let miner = new Miner(null, kp, newGen);
-      let output = { alice: 40, bob: 50 };
-      // Signing with a different key than used for the account.
-      let tx = utils.makeTransaction(newKeypair.private, output, account);
-      assert.ok(!miner.addTransaction(tx, tx.comment, newKeypair.public));
-    });
-  });
-
-  describe('#isValidBlock', function() {
-    it("should reject blocks with invalid transactions", function() {
-      // FIXME
-    });
-    it("should reject blocks with multiple coinbase transactions", function() {
-      // FIXME
-    });
-  });
-
-  describe('#getBalance', function() {
-    it("should return the balance for the specified account", function() {
-      let miner = new Miner(null, newKeypair, newGen);
-      assert.equal(miner.getBalance(account), 100);
-    });
-  });
-});
-*/
