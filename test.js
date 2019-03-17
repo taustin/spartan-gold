@@ -16,16 +16,21 @@ const utils = require('./utils.js');
 const kp = utils.generateKeypair();
 const newKeypair = utils.generateKeypair();
 
+// Likewise, use a global wallet with one address,
+// since each addresses is expensive to generate.
+const wallet = new Wallet();
+const addr = wallet.makeAddress();
+
 // Adding a POW target that should be trivial to match.
 //const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
 
-describe('utils', function() {
-  describe('.verifySignature', function() {
+describe('utils', () => {
+  describe('.verifySignature', () => {
     let sig = utils.sign(kp.private, "hello");
-    it('should accept a valid signature', function() {
+    it('should accept a valid signature', () => {
       assert.ok(utils.verifySignature(kp.public, "hello", sig));
     });
-    it('should reject an invalid signature', function() {
+    it('should reject an invalid signature', () => {
       assert.ok(!utils.verifySignature(kp.public, "goodbye", sig));
     });
   });
@@ -123,37 +128,35 @@ describe("Transaction", () => {
 
 describe("Wallet", () => {
   describe("#balance", () => {
-    let w = new Wallet();
-    let addr = w.makeAddress();
-    let utxo1 = { amount: 42, address: addr };
-    let utxo2 = { amount: 25, address: addr };
-    let tx = new Transaction({
-      inputs: [],
-      outputs: [utxo1, utxo2],
-    });
-    w.addUTXO(utxo1, tx.id, 0);
-    w.addUTXO(utxo2, tx.id, 1);
     it("should return the total value of coins stored in the wallet.", () => {
-      assert.equal(w.balance, 67);
+      wallet.empty();
+      let utxo1 = { amount: 42, address: addr };
+      let utxo2 = { amount: 25, address: addr };
+      let tx = new Transaction({
+        inputs: [],
+        outputs: [utxo1, utxo2],
+      });
+      wallet.addUTXO(utxo1, tx.id, 0);
+      wallet.addUTXO(utxo2, tx.id, 1);
+      assert.equal(wallet.balance, 67);
     });
   });
   describe("#spendUTXOs", () => {
-    let w = new Wallet();
-    let addr = w.makeAddress();
-    let utxo1 = { amount: 42, address: addr };
-    let utxo2 = { amount: 25, address: addr };
-    let tx = new Transaction({
-      inputs: [],
-      outputs: [utxo1, utxo2],
-    });
-    w.addUTXO(utxo1, tx.id, 0);
-    w.addUTXO(utxo2, tx.id, 1);
     it("should spend sufficient UTXOs to reach the balance.", () => {
-      assert.equal(w.coins.length, 2);
+      wallet.empty();
+      let utxo1 = { amount: 42, address: addr };
+      let utxo2 = { amount: 25, address: addr };
+      let tx = new Transaction({
+        inputs: [],
+        outputs: [utxo1, utxo2],
+      });
+      wallet.addUTXO(utxo1, tx.id, 0);
+      wallet.addUTXO(utxo2, tx.id, 1);
+      assert.equal(wallet.coins.length, 2);
       // Either UTXO should be sufficient.
-      let { inputs } = w.spendUTXOs(20);
+      let { inputs } = wallet.spendUTXOs(20);
       let { txID, outputIndex, pubKey, sig } = inputs[0];
-      assert.equal(w.coins.length, 1);
+      assert.equal(wallet.coins.length, 1);
       assert.equal(txID, tx.id);
       // Make sure the signature is valid
       assert.isTrue(utils.verifySignature(pubKey, tx.outputs[outputIndex], sig));
@@ -188,29 +191,31 @@ describe("MerkleTree", () => {
   });
 });
 
-describe('Block', function() {
-  describe('#addTransaction', function() {
-    // Slow test.
-    /*
-    let aliceWallet = new Wallet();
-    let bobWallet = new Wallet();
-    let charlieWallet = new Wallet();
-    let gb = Block.makeGenesisBlock([
-      { client: {wallet: aliceWallet}, amount: 150 },
-      { client: {wallet: bobWallet}, amount: 90 },
-      { client: {wallet: charlieWallet}, amount: 20 },
-    ]);
-    it("should update the block's utxo if the transaction was successful", function() {
-      let { inputs } = aliceWallet.spendUTXOs(25);
+describe('Block', () => {
+  describe('#addTransaction', () => {
+    // Slow test -- allowing additional time for it to run.
+    it("should update the block's utxo if the transaction was successful", () => {
+      wallet.empty();
+      let aliceWallet = new Wallet();
+      let bobWallet = wallet;
+      let gb = Block.makeGenesisBlock([
+        { client: {wallet: aliceWallet}, amount: 150 },
+      ]);
+      let { inputs } = aliceWallet.spendUTXOs(125);
+      let outInd = inputs[0].outputIndex;
       let tx = new Transaction({
         inputs: inputs,
-        outputs: [ { address: bobWallet.makeAddress(), amount: 20 } ],
+        outputs: [ { address: addr, amount: 120 } ],
       });
       gb.addTransaction(tx);
+      // Testing that wallets are updated correctly.
       bobWallet.addUTXO(tx.outputs[0], tx.id, 0);
       assert.equal(aliceWallet.balance, 0);
-      assert.equal(bobWallet.balance, 110);
-    });
-    //*/
+      assert.equal(bobWallet.balance, 120);
+      // Testing UTXOs
+      let utxo = gb.utxos[tx.id][outInd];
+      assert.equal(utxo.amount, 120);
+      assert.equal(utxo.address, addr);
+    }).timeout(5000);
   });
 });

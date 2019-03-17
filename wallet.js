@@ -134,4 +134,13 @@ module.exports = class Wallet {
   hasKey(address) {
     return !!this.addresses[address];
   }
+
+  /**
+   * Used for testing only.  Sets the wallet to empty,
+   * but leaves the keys alone so that we can avoid the
+   * (expensive) regeneration of addresses.
+   */
+  empty() {
+    this.coins = [];
+  }
 }
