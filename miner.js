@@ -20,11 +20,11 @@ module.exports = class Miner extends Client {
    * When a new miner is created, but the PoW search is **not** yet started.
    * The initialize method kicks things off.
    * 
-   * @param {function} broadcast - The function that the miner will use
+   * @param {Object} net - The network that the miner will use
    *      to send messages to all other clients.
    */
-  constructor(name, broadcast) {
-    super(broadcast);
+  constructor(name, net) {
+    super(net);
 
     // Used for debugging only.
     this.name = name;
@@ -106,7 +106,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.broadcast(PROOF_FOUND, this.currentBlock.serialize(true));
+    this.net.broadcast(PROOF_FOUND, this.currentBlock.serialize(true));
   }
 
   /**

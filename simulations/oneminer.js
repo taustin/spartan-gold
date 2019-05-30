@@ -4,15 +4,17 @@ let Block = require('../block.js');
 let Client = require('../client.js');
 let Miner = require('../miner.js');
 
-let fakeNet = require('../fakeNet.js');
+let FakeNet = require('../fakeNet.js');
+
+let net = new FakeNet();
 
 // Clients
-let alice = new Client(fakeNet.broadcast);
-let bob = new Client(fakeNet.broadcast);
-let charlie = new Client(fakeNet.broadcast);
+let alice = new Client(net);
+let bob = new Client(net);
+let charlie = new Client(net);
 
 // Miners
-let minnie = new Miner("Minnie", fakeNet.broadcast);
+let minnie = new Miner("Minnie", net);
 
 console.log("Starting simulation.  This may take a moment...");
 
@@ -30,7 +32,7 @@ console.log(`Charlie has ${charlie.wallet.balance} coins.`);
 console.log(`Minnie has ${minnie.wallet.balance} coins.`);
 console.log();
 
-fakeNet.register(alice, bob, charlie, minnie);
+net.register(alice, bob, charlie, minnie);
 
 // Miners start mining.
 minnie.initialize(genesis);
