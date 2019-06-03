@@ -16,17 +16,17 @@ const DEFAULT_TX_FEE = 1;
 module.exports = class Client extends EventEmitter {
 
   /**
-   * The broadcast function determines how the client communicates
+   * The net object determines how the client communicates
    * with other entities in the system. (This approach allows us to
    * simplify our testing setup.)
    * 
-   * @param {function} broadcast - The function used by the client
-   *    to send messages to all miners and clients.
+   * @param {Object} net - The network used by the client
+   *    to send messages to all miners and clients, or.
    */
-  constructor(broadcast) {
+  constructor(net) {
     super();
 
-    this.broadcast = broadcast;
+    this.net = net;
 
     this.wallet = new Wallet();
 
@@ -67,7 +67,7 @@ module.exports = class Client extends EventEmitter {
       inputs: inputs,
       outputs: outputs,
     });
-    this.broadcast(POST, tx);
+    this.net.broadcast(POST, tx);
   }
 
   /**
