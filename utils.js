@@ -36,3 +36,6 @@ exports.calcAddress = function(key) {
   return addr;
 }
 
+exports.addressMatchesKey = function(addr, pubKey) {
+  return addr === exports.calcAddress(pubKey);
+}

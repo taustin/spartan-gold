@@ -2,137 +2,89 @@
 
 const utils = require('./utils.js');
 
+// String constants mixed in before hashing.
+const TX_CONST = "TX";
+
 /**
- * A transaction is made up of a collection of inputs and outputs.
- * The total value of the outputs must equal or exceed the inputs.
- * 
- * One exception: coinbase transactions have no inputs; Their total
- * outputs should match up with the transaction fees from the
- * transactions in the block, plus an extra reward for for the block
- * itself.
- * 
- * For a transaction, the mining fee is specified as the difference
- * between the total value of the inputs and the total value of the
- * outputs.
- * 
+ * A transaction comes from a single account, specified by "address". For
+ * each account, transactions have an order established by the nonce. A
+ * transaction should not be accepted if the nonce has already been used.
+ * (Nonces are in increasing order, so it is easy to determine when a nonce
+ * has been used.)
  */
 module.exports = class Transaction {
 
   /**
-   * The constructor for a transaction specifies an array of inputs
-   * and outputs.  The inputs are optional, in order to support
-   * coinbase transactions.
-   * 
-   * An output is a pair of an amount of coins and the hash of a
-   * public key (also called the address), in the form:
-   *  {amount, address}
-   * 
-   * An input is a triple of a transaction ID, the index of an output
-   * within that transaction ID, and the public key that matches the
-   * hash of the public key from a previous output.  It is in the form:
-   *  {txID, outputIndex, pubKey, sig}
+   * The constructor for a transaction includes an array of outputs, meaning
+   * that one transaction can pay multiple parties. An output is a pair of an
+   * amount of gold and the hash of a public key (also called the address),
+   * in the form:
+   *    {amount, address}
    * 
    * @constructor
    * @param {Object} obj - The inputs and outputs of the transaction.
+   * @param obj.from - The address of the payer.
+   * @param obj.nonce - Number that orders the payer's transactions.  For coinbase
+   *          transactions, this should be the block height.
+   * @param obj.pubKey - Public key associated with the specified from address.
+   * @param obj.sig - Signature of the transaction.  This field may be ommitted.
+   * @param  obj.fee - The amount of gold offered as a transaction fee.
    * @param {Array} obj.outputs - An array of the outputs.
-   * @param {Array} obj.inputs - An array of the inputs.
    */
-  constructor({outputs, inputs=[]}) {
-    this.inputs = inputs;
+  constructor({from, nonce, pubKey, sig, outputs, fee=0}) {
+    this.from = from;
+    this.nonce = nonce;
+    this.pubKey = pubKey;
+    this.sig = sig;
+    this.fee = fee;
     this.outputs = outputs;
-
-    // The id is determined at creation and remains constant,
-    // even if outputs change.  (This case should only come up
-    // with coinbase transactions).
-    this.id = utils.hash("" + JSON.stringify({inputs, outputs}));
   }
 
   /**
-   * Validates the input and returns the amount of tokens in the output.
-   * If the input is invalid, either due to an invalid signature or due
-   * to the wrong transaction ID, an exception is raised.
-   * 
-   * @param {Object} input - The object representing an input
+   * A transaction's ID is derived from its contents.
    */
-  spendOutput(input) {
-    let {txID, outputIndex, pubKey, sig} = input;
-    if (txID !== this.id) {
-      throw new Error(`Transaction id of input was ${txID}, but this transaction's id is ${this.id}`);
-    }
-    let output = this.outputs[outputIndex];
-    let {amount, address} = output;
-    if (utils.calcAddress(pubKey) !== address) {
-      throw new Error(`Public key does not match its hash for tx ${this.id}, output ${outputIndex}.`);
-    } else if (!utils.verifySignature(pubKey, output, sig)) {
-      throw new Error(`Invalid signature for ${this.id}, outpout ${outputIndex}.`);
-    } else {
-      return amount;
-    }
+  get id() {
+    return utils.hash(TX_CONST + JSON.stringify({
+      from: this.from,
+      nonce: this.nonce,
+      pubKey: this.pubKey,
+      outputs: this.outputs,
+      fee: this.fee}));
   }
 
   /**
-   * Validates that a transaction's inputs and outputs are valid.
-   * In order to validate a transaction, the map of UTXOs is needed.
+   * Signs a transaction and stores the signature in the transaction.
    * 
-   * A transaction is valid if the sum of the UTXOs matching the inputs
-   * must be at least as large as the sum out the outputs.  Also, the
-   * signatures of the inputs must be valid and match the address
-   * specified in the corresponding UTXOs.
-   * 
-   * Note that coinbase transactions are **not** valid according to this
-   * method, and should not be tested with it.
-   * 
-   * @param {Array} utxos - The UTXOs matching the inputs.
-   * @returns {boolean} True if the transaction is valid, false otherwise.
+   * @param privKey  - The key used to sign the signature.  It should match the
+   *    public key included in the transaction.
    */
-  isValid(utxos) {
-    // Calculating the total input and verifying each key.
-    let totalIn = 0;
-    for (let i in this.inputs) {
-      let {txID, outputIndex, pubKey, sig} = this.inputs[i];
-
-      // Lookup the UTXO.
-      let utxoTX = utxos[txID];
-      if (!utxoTX) return false;
-      let utxo = utxoTX[outputIndex];
-
-      // Check if the UTXO is valid.
-      if (!utxo || !utils.verifySignature(pubKey, utxo, sig)) {
-        return false;
-      }
-
-      // Make sure the UTXO matches the input.
-      if (utils.calcAddress(pubKey) !== utxo.address) {
-        return false;
-      }
-
-      // Track the total inputs
-      totalIn += utxo.amount;
-    }
-    return totalIn >= this.totalOutput();
+  sign(privKey) {
+    this.sig = utils.sign(privKey, this.id);
   }
 
   /**
-   * This method is used to give an additional reward to the miner for including a
-   * transaction.  All rewards are added to the first output in this transaction.
+   * Determines whether the signature of the transaction is valid
+   * and if the from address matches the public key. This method
+   * is not relevant for coinbase transactions.
    * 
-   * This should only be called on coinbase transactions.
-   * 
-   * Also note the this changes the contents, but not the id.  That means that the
-   * hash of the transaction and the tranasction ID are no longer connected.
-   * 
-   * @param {number} amount - The number of coins offered as a miner reward.
+   * @returns {Boolean} - Validity of the signature and from address.
    */
-  addFee(amount) {
-    this.outputs[0].amount += amount;
+  validSignature() {
+    return this.sig !== undefined &&
+        utils.addressMatchesKey(this.from, this.pubKey) &&
+        utils.verifySignature(this.pubKey, this.id, this.sig);
+  }
+
+  sufficientFunds(balances) {
+    return this.totalOutput() <= balances.get(this.from);
   }
 
   /**
-   * Calculates the total value of all outputs.
+   * Calculates the total value of all outputs, including the transaction fee.
+   * 
+   * @returns {Number} - Total amount of gold given out with this transaction.
    */
   totalOutput() {
-    return this.outputs.reduce(
-      (acc, {amount}) => acc + amount,
-      0);
+    return this.outputs.reduce( (totalValue, {amount}) => totalValue + amount, this.fee);
   }
 }

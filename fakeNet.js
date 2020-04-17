@@ -16,12 +16,12 @@ module.exports = class FakeNet {
      * Miners are registered by name.
      * In the future, may change this method to register by public key regardless of miner/client.
      * 
-     * @param {...Object} clientlist - clients to be registered to this network (may be Client or Miner)
+     * @param {...Object} clientList - clients to be registered to this network (may be Client or Miner)
      */
-    register(...clientlist) {
-        clientlist.forEach(client => {
-            let name = client.name || "client" + this.clientCtr++;
-            this.clients[name] = client;
+    register(...clientList) {
+        clientList.forEach(client => {
+            console.log(`Registering ${client.address}`);
+            this.clients[client.address] = client;
         });
     }
 
@@ -29,7 +29,7 @@ module.exports = class FakeNet {
      * Broadcasts to all clients within this.clients the message msg and payload o.
      * 
      * @param {String} msg - the name of the event being broadcasted (e.g. "PROOF_FOUND")
-     * @param {Objejct} o - payload of the message
+     * @param {Object} o - payload of the message
      */
     broadcast(msg, o) {
         Object.keys(this.clients).forEach((clientName) => {
