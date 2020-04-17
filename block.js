@@ -20,6 +20,8 @@ module.exports = class Block {
    * Converts a string representation of a block to a new Block instance.
    * 
    * @param {string} str - A string representing a block in JSON format.
+   * 
+   * @returns {Block}
    */
   static deserialize(str) {
     let b = new Block();
@@ -57,6 +59,7 @@ module.exports = class Block {
     this.target = target;
 
     // Get the balances from the previous block, if available.
+    // Note that balances are NOT part of the serialized format.
     this.balances = prevBlock ? new Map(prevBlock.balances) : new Map();
 
     if (prevBlock) {

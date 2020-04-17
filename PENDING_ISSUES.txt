@@ -10,3 +10,8 @@ ISSUES (named by MMDD-##)
 0417-01 -- Use nonce to prevent replayed transactions.
 
 0417-02 -- Get missing blocks from the network.
+
+0417-03 -- Make a better approach for building the genesis block.
+
+0417-04 -- Refactor paying out of rewards.
+

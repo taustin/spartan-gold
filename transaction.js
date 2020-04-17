@@ -28,7 +28,7 @@ module.exports = class Transaction {
    *          transactions, this should be the block height.
    * @param obj.pubKey - Public key associated with the specified from address.
    * @param obj.sig - Signature of the transaction.  This field may be ommitted.
-   * @param  obj.fee - The amount of gold offered as a transaction fee.
+   * @param obj.fee - The amount of gold offered as a transaction fee.
    * @param {Array} obj.outputs - An array of the outputs.
    */
   constructor({from, nonce, pubKey, sig, outputs, fee=0}) {

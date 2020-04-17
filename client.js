@@ -104,7 +104,7 @@ module.exports = class Client extends EventEmitter {
     let totalPayments = outputs.reduce((acc, {amount}) => acc + amount, 0) + fee;
 
     // Make sure the client has enough gold.
-    if (totalPayments > this.balance) {
+    if (totalPayments > this.availableGold) {
       throw new Error(`Requested ${totalPayments}, but account only has ${this.balance}.`);
     }
 
@@ -135,7 +135,7 @@ module.exports = class Client extends EventEmitter {
    * they are added to a list of pending blocks and a request is sent out to get the
    * missing blocks from other clients.
    * 
-   * @param {Block} block - The block to add to the clients list of available blocks.
+   * @param {Block | string} block - The block to add to the clients list of available blocks.
    * 
    * @returns {Block | null} The block with replayed transactions, or null for an invalid block.
    */
@@ -161,6 +161,7 @@ module.exports = class Client extends EventEmitter {
     if (!prevBlock) {
       this.requestMissingBlocks(block);
       // Add the block to the list of pending blocks, if we don't have it already.
+      // FIXME: Change this to a set instead of a list?  And fix the horrible naming.
       let pendingBlocks = this.pendingBlocks.get(block.prevBlockHash) || [];
       if (!pendingBlocks.find(b => b.id === block.id)) {
         pendingBlocks.push(block);

@@ -83,7 +83,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(PROOF_FOUND, this.currentBlock.serialize(true));
+    this.net.broadcast(PROOF_FOUND, this.currentBlock.serialize());
   }
 
   /**

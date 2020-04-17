@@ -32,11 +32,11 @@ genesis.balances = new Map([
 ]);
 
 function showBalances(client) {
-  console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} coins.`);
-  console.log(`Bob has ${client.lastBlock.balanceOf(bob.address)} coins.`);
-  console.log(`Charlie has ${client.lastBlock.balanceOf(charlie.address)} coins.`);
-  console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} coins.`);
-  console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} coins.`);
+  console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} gold.`);
+  console.log(`Bob has ${client.lastBlock.balanceOf(bob.address)} gold.`);
+  console.log(`Charlie has ${client.lastBlock.balanceOf(charlie.address)} gold.`);
+  console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} gold.`);
+  console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} gold.`);
 }
 
 // Showing the initial balances from Alice's perspective, for no particular reason.
@@ -50,7 +50,7 @@ minnie.initialize();
 mickey.initialize();
 
 // Alice transfers some money to Bob.
-console.log(`Alice is transfering 40 coins to ${bob.address}`);
+console.log(`Alice is transfering 40 gold to ${bob.address}`);
 alice.postTransaction([{ amount: 40, address: bob.address }]);
 
 // Print out the final balances after it has been running for some time.
