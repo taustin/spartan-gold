@@ -3,26 +3,19 @@
 const assert = require('chai').assert;
 const BigInteger = require('jsbn').BigInteger;
 
+const utils = require('./utils.js');
+
 const Block = require('./block.js');
 const Client = require('./client.js');
 const Miner = require('./miner.js');
-const MerkleTree = require('./merkle-tree.js');
 const Transaction = require('./transaction.js');
-const Wallet = require('./wallet.js');
 
-const utils = require('./utils.js');
-
-// Using these keypairs for all tests, since key generation is slow.
+// Generating keypair for multiple test cases, since key generation is slow.
 const kp = utils.generateKeypair();
-const newKeypair = utils.generateKeypair();
-
-// Likewise, use a global wallet with one address,
-// since each addresses is expensive to generate.
-const wallet = new Wallet();
-const addr = wallet.makeAddress();
+let addr = utils.calcAddress(kp.public);
 
 // Adding a POW target that should be trivial to match.
-//const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
 
 describe('utils', () => {
   describe('.verifySignature', () => {
@@ -30,6 +23,7 @@ describe('utils', () => {
     it('should accept a valid signature', () => {
       assert.ok(utils.verifySignature(kp.public, "hello", sig));
     });
+
     it('should reject an invalid signature', () => {
       assert.ok(!utils.verifySignature(kp.public, "goodbye", sig));
     });
@@ -37,185 +31,156 @@ describe('utils', () => {
 });
 
 describe("Transaction", () => {
-  describe("#spendOutput", () => {
-    let address = utils.calcAddress(kp.public);
-    let tx = new Transaction({
-      inputs: [],
-      outputs: [{amount: 42, address: address}],
-    });
-    it("should return the amount of tokens in the output if the input matches the output.", () => {
-      let nextInput = {
-        txID: tx.id,
-        outputIndex: 0,
-        pubKey: kp.public,
-        sig: utils.sign(kp.private, tx.outputs[0])
-      };
-      assert.equal(tx.spendOutput(nextInput), 42);
-    });
-    it("should throw an exception if the transaction ID is invalid.", () => {
-      let nextInput = {
-        txID: 12345,
-        outputIndex: 0,
-        pubKey: kp.public,
-        sig: utils.sign(kp.private, tx.outputs[0]),
-      };
-      assert.throws(() => {
-        tx.spendOutput(nextInput);
-      });
-    });
-    it("should throw and exception if the signature is invalid.", () => {
-      let nextInput = {
-        txID: tx.id,
-        outputIndex: 0,
-        pubKey: kp.public,
-        sig: utils.sign(newKeypair.private, tx.outputs[0]),
-      };
-      assert.throws(() => {
-        tx.spendOutput(nextInput);
-      });
-    });
-  });
-  describe("#isValid", () => {
-    let address = utils.calcAddress(kp.public);
-    let cbTX = new Transaction({
-      coinBaseReward: 1,
-      outputs: [{amount: 1, address: address},
-                {amount: 42, address: address}],
-    });
-    let utxos = {};
-    utxos[cbTX.id] = cbTX.outputs;
-    let input = {
-      txID: cbTX.id,
-      outputIndex: 1,
-      pubKey: kp.public,
-      sig: utils.sign(kp.private, cbTX.outputs[1]),
-    };
-    let newAddress = utils.calcAddress(newKeypair.public);
+  let outputs = [{amount: 20, address: "ffff"},
+                 {amount: 40, address: "face"}];
+  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 1});
+  t.sign(kp.private);
 
-    it("should consider a transaction valid if the outputs do not exceed the inputs", () => {
-      let tx = new Transaction({
-        inputs: [input],
-        outputs: [{amount: 20, address: newAddress},
-                  {amount: 10, address: address}],
-      });
-      assert.isTrue(tx.isValid(utxos));
+  describe("#totalOutput", () => {
+    it('should sum up all of the outputs and the transaction fee', () => {
+      assert.equal(t.totalOutput(), 61);
     });
+  });
 
-    it("should consider a transaction invalid if the outputs exceed the inputs", () => {
-      let tx = new Transaction({
-        inputs: [input],
-        outputs: [{amount: 20, address: newAddress},
-                  {amount: 30, address: address}],
-      });
-      assert.isFalse(tx.isValid(utxos));
-    });
-
-    it("should reject a transaction if the signatures on the inputs do not match the UTXOs", () => {
-      let badInput = {
-        txID: cbTX.id,
-        outputIndex: 1,
-        pubKey: newKeypair.public,
-        sig: utils.sign(newKeypair.private, cbTX.outputs[1]),
-      };
-      let tx = new Transaction({
-        inputs: [badInput],
-        outputs: [{amount: 40, address: newAddress}],
-      });
-      assert.isFalse(tx.isValid(utxos));
-    });
-  });
-});
-
-describe("Wallet", () => {
-  describe("#balance", () => {
-    it("should return the total value of coins stored in the wallet.", () => {
-      wallet.empty();
-      let utxo1 = { amount: 42, address: addr };
-      let utxo2 = { amount: 25, address: addr };
-      let tx = new Transaction({
-        inputs: [],
-        outputs: [utxo1, utxo2],
-      });
-      wallet.addUTXO(utxo1, tx.id, 0);
-      wallet.addUTXO(utxo2, tx.id, 1);
-      assert.equal(wallet.balance, 67);
-    });
-  });
-  describe("#spendUTXOs", () => {
-    it("should spend sufficient UTXOs to reach the balance.", () => {
-      wallet.empty();
-      let utxo1 = { amount: 42, address: addr };
-      let utxo2 = { amount: 25, address: addr };
-      let tx = new Transaction({
-        inputs: [],
-        outputs: [utxo1, utxo2],
-      });
-      wallet.addUTXO(utxo1, tx.id, 0);
-      wallet.addUTXO(utxo2, tx.id, 1);
-      assert.equal(wallet.coins.length, 2);
-      // Either UTXO should be sufficient.
-      let { inputs } = wallet.spendUTXOs(20);
-      let { txID, outputIndex, pubKey, sig } = inputs[0];
-      assert.equal(wallet.coins.length, 1);
-      assert.equal(txID, tx.id);
-      // Make sure the signature is valid
-      assert.isTrue(utils.verifySignature(pubKey, tx.outputs[outputIndex], sig));
-    });
-  });
-});
-
-describe("MerkleTree", () => {
-  describe("#verify", () => {
-    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
-    it("should return true if the path is valid.", () => {
-      let path = mt.getPath("a");
-      assert.isTrue(mt.verify("a", path));
-      path = mt.getPath("f");
-      assert.isTrue(mt.verify("f", path));
-    });
-    it("should return false if the wrong path is specified.", () => {
-      let path = mt.getPath("a");
-      assert.isFalse(mt.verify("d", path));
-    });
-  });
-  describe("#contains", () => {
-    const mt = new MerkleTree(["a", "b", "c", "d", "e", "f", "g", "h"]);
-    it("should return true if the tree contains the transaction.", () => {
-      assert.isTrue(mt.contains("a"));
-      assert.isTrue(mt.contains("d"));
-      assert.isTrue(mt.contains("g"));
-    });
-    it("should return false if the tree does not contain the transaction.", () => {
-      assert.isFalse(mt.contains("z"));
-    });
-  });
 });
 
 describe('Block', () => {
+  let addr = utils.calcAddress(kp.public);
+
+  let prevBlock = new Block("8e7912");
+  prevBlock.balances = new Map([ [addr, 500], ["ffff", 100], ["face", 99] ]);
+
+  let outputs = [{amount: 20, address: "ffff"}, {amount: 40, address: "face"}];
+  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 1});
+
   describe('#addTransaction', () => {
-    // Slow test -- allowing additional time for it to run.
-    it("should update the block's utxo if the transaction was successful", () => {
-      wallet.empty();
-      let aliceWallet = new Wallet();
-      let bobWallet = wallet;
-      let gb = Block.makeGenesisBlock([
-        { client: {wallet: aliceWallet}, amount: 150 },
-      ]);
-      let { inputs } = aliceWallet.spendUTXOs(125);
-      let outInd = inputs[0].outputIndex;
-      let tx = new Transaction({
-        inputs: inputs,
-        outputs: [ { address: addr, amount: 120 } ],
-      });
-      gb.addTransaction(tx);
-      // Testing that wallets are updated correctly.
-      bobWallet.addUTXO(tx.outputs[0], tx.id, 0);
-      assert.equal(aliceWallet.balance, 0);
-      assert.equal(bobWallet.balance, 120);
-      // Testing UTXOs
-      let utxo = gb.utxos[tx.id][outInd];
-      assert.equal(utxo.amount, 120);
-      assert.equal(utxo.address, addr);
-    }).timeout(5000);
+    it("should fail if a transaction is not signed.", () => {
+      let b = new Block(addr, prevBlock);
+      let tx = new Transaction(t);
+      assert.isFalse(b.addTransaction(tx));
+    });
+
+    it("should fail if the 'from' account does not have enough gold.", () => {
+      let b = new Block(addr, prevBlock);
+      let tx = new Transaction(t);
+      tx.outputs = [{amount:20000000000000, address: "ffff"}];
+      tx.sign(kp.private);
+      assert.isFalse(b.addTransaction(tx));
+    });
+
+    it("should transfer gold from the sender to the receivers.", () => {
+      let b = new Block(addr, prevBlock);
+      let tx = new Transaction(t);
+      tx.sign(kp.private);
+      b.addTransaction(tx);
+      assert.equal(b.balances.get(addr), 500-61); // Extra 1 for transaction fee.
+      assert.equal(b.balances.get("ffff"), 100+20);
+      assert.equal(b.balances.get("face"), 99+40);
+    });
+  });
+
+  describe('#replay', () => {
+    it("should redo transactions to return to the same block.", () => {
+      let b = new Block(addr, prevBlock);
+
+      let tx = new Transaction(t);
+      tx.sign(kp.private);
+      b.addTransaction(tx);
+
+      // Wiping out balances and then replaying
+      b.balances = new Map();
+      b.replay(prevBlock);
+
+      // Verifying prevBlock's balances are unchanged.
+      assert.equal(prevBlock.balances.get(addr), 500);
+      assert.equal(prevBlock.balances.get("ffff"), 100);
+      assert.equal(prevBlock.balances.get("face"), 99);
+
+      // Verifying b's balances are correct.
+      assert.equal(b.balances.get(addr), 500-61);
+      assert.equal(b.balances.get("ffff"), 100+20);
+      assert.equal(b.balances.get("face"), 99+40);
+    });
+
+    it("should take a serialized/deserialized block and get back the same block.", () => {
+      let b = new Block(addr, prevBlock);
+
+      let tx = new Transaction(t);
+      tx.sign(kp.private);
+      b.addTransaction(tx);
+
+      let serialBlock = b.serialize();
+      let b2 = Block.deserialize(serialBlock);
+      b2.replay(prevBlock);
+
+      assert.equal(b2.balances.get(addr), 500-61);
+      assert.equal(b2.balances.get("ffff"), 100+20);
+      assert.equal(b2.balances.get("face"), 99+40);
+    });
+  });
+});
+
+describe('Client', () => {
+  let genesis = new Block("8e7912");
+  genesis.balances = new Map([ [addr, 500], ["ffff", 100], ["face", 99] ]);
+  let broadcast = function(){};
+
+  let outputs = [{amount: 20, address: "ffff"}, {amount: 40, address: "face"}];
+  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 1});
+  t.sign(kp.private);
+
+  let outputs2 = [{amount: 10, address: "face"}];
+  let t2 = new Transaction({from: addr, pubKey: kp.public, outputs: outputs2, fee: 1, nonce: 1});
+  t2.sign(kp.private);
+
+  let clint = new Client(broadcast, genesis);
+  clint.log = function(){};
+
+  let miner = new Miner("Minnie", broadcast, genesis);
+  miner.log = function(){};
+
+  describe('#receiveBlock', () => {
+    it("should reject any block without a valid proof.", () => {
+      let b = new Block(addr, genesis);
+      b.addTransaction(t);
+      // Receiving and verifying block
+      b = clint.receiveBlock(b);
+      assert.isNull(b);
+    });
+
+    it("should store all valid blocks, but only change lastBlock if the newer block is better.", () => {
+      let b = new Block(addr, genesis, EASY_POW_TARGET);
+      b.addTransaction(t);
+      // Finding a proof.
+      miner.currentBlock = b;
+      b.proof = 0;
+      miner.findProof(true);
+      // Receiving and verifying block
+      clint.receiveBlock(b);
+      assert.equal(clint.blocks.get(b.id), b);
+      assert.equal(clint.lastBlock, b);
+
+      let b2 = new Block(addr, b, EASY_POW_TARGET);
+      b2.addTransaction(t2);
+      // Finding a proof.
+      miner.currentBlock = b2;
+      b2.proof = 0;
+      miner.findProof(true);
+      // Receiving and verifying block
+      clint.receiveBlock(b2);
+      assert.equal(clint.blocks.get(b2.id), b2);
+      assert.equal(clint.lastBlock, b2);
+
+      let bAlt = new Block(addr, genesis, EASY_POW_TARGET);
+      bAlt.addTransaction(t2);
+      // Finding a proof.
+      miner.currentBlock = bAlt;
+      bAlt.proof = 0;
+      miner.findProof(true);
+      // Receiving and verifying block
+      clint.receiveBlock(bAlt);
+      assert.equal(clint.blocks.get(bAlt.id), bAlt);
+      assert.equal(clint.lastBlock, b2);
+    });
   });
 });

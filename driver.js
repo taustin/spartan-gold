@@ -6,59 +6,66 @@ let Miner = require('./miner.js');
 
 let fakeNet = require('./fakeNet.js');
 
-// Clients
-let alice = new Client(fakeNet.broadcast);
-let bob = new Client(fakeNet.broadcast);
-let charlie = new Client(fakeNet.broadcast);
-
-// Miners
-let minnie = new Miner("Minnie", fakeNet.broadcast);
-let mickey = new Miner("Mickey", fakeNet.broadcast);
-
 console.log("Starting simulation.  This may take a moment...");
 
-let genesis = Block.makeGenesisBlock([
-  { client: alice, amount: 133},
-  { client: bob, amount: 99},
-  { client: charlie, amount: 67},
-  { client: minnie, amount: 400},
-  { client: mickey, amount: 322},
+// Creating genesis block
+let genesis = new Block();
+
+// Clients
+let alice = new Client(fakeNet.broadcast, genesis);
+let bob = new Client(fakeNet.broadcast, genesis);
+let charlie = new Client(fakeNet.broadcast, genesis);
+
+// Miners
+let minnie = new Miner("Minnie", fakeNet.broadcast, genesis);
+let mickey = new Miner("Mickey", fakeNet.broadcast, genesis);
+
+// Setting initial gold.
+genesis.balances = new Map([
+  [alice.address, 133],
+  [bob.address, 99],
+  [charlie.address, 67],
+  [minnie.address, 400],
+  [mickey.address, 322],
 ]);
 
+function showBalances(client) {
+  console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} coins.`);
+  console.log(`Bob has ${client.lastBlock.balanceOf(bob.address)} coins.`);
+  console.log(`Charlie has ${client.lastBlock.balanceOf(charlie.address)} coins.`);
+  console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} coins.`);
+  console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} coins.`);
+}
+
+// Showing the initial balances from Alice's perspective, for no particular reason.
 console.log("Initial balances:");
-console.log(`Alice has ${alice.wallet.balance} coins.`);
-console.log(`Bob has ${bob.wallet.balance} coins.`);
-console.log(`Charlie has ${charlie.wallet.balance} coins.`);
-console.log(`Minnie has ${minnie.wallet.balance} coins.`);
-console.log(`Mickey has ${mickey.wallet.balance} coins.`);
-console.log();
+showBalances(alice);
 
 fakeNet.register(alice, bob, charlie, minnie, mickey);
 
 // Miners start mining.
-minnie.initialize(genesis);
-mickey.initialize(genesis);
+minnie.initialize();
+mickey.initialize();
 
 // Alice transfers some money to Bob.
-let bobAddr = bob.wallet.makeAddress();
-console.log(`Alice is transfering 40 coins to ${bobAddr}`);
-alice.postTransaction([{ amount: 40, address: bobAddr }]);
+console.log(`Alice is transfering 40 coins to ${bob.address}`);
+alice.postTransaction([{ amount: 40, address: bob.address }]);
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
   console.log();
-  console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}, with the following UTXOs:`);
-  minnie.currentBlock.displayUTXOs();
+  console.log(`Minnie has a chain of length ${minnie.currentBlock.chainLength}:`);
 
   console.log();
-  console.log(`Mickey has a chain of length ${minnie.currentBlock.chainLength}, with the following UTXOs:`);
-  mickey.currentBlock.displayUTXOs();
+  console.log(`Mickey has a chain of length ${mickey.currentBlock.chainLength}:`);
 
   console.log();
-  console.log("Final wallets:");
-  console.log(`Alice has ${alice.wallet.balance} coins.`);
-  console.log(`Bob has ${bob.wallet.balance} coins.`);
-  console.log(`Charlie has ${charlie.wallet.balance} coins.`);
-  console.log(`Minnie has ${minnie.wallet.balance} coins.`);
-  console.log(`Mickey has ${mickey.wallet.balance} coins.`);
-}, 10000);
+  console.log("Final balances (Minnie's perspective):");
+  showBalances(minnie);
+
+  console.log();
+  console.log("Final balances (Alice's perspective):");
+  showBalances(alice);
+
+  throw "TERMINATE";
+}, 5000);

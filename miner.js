@@ -11,39 +11,32 @@ const POST_TRANSACTION = "POST_TRANSACTION";
 
 /**
  * Miners are clients, but they also mine blocks looking for "proofs".
- * 
- * Each miner stores a map of blocks, where the hash of the block
- * is the key.
  */
 module.exports = class Miner extends Client {
   /**
    * When a new miner is created, but the PoW search is **not** yet started.
    * The initialize method kicks things off.
    * 
+   * @constructor
+   * @param {String} name - The miner's name, used for debugging messages.
    * @param {function} broadcast - The function that the miner will use
    *      to send messages to all other clients.
+   * @param {Block} startingBlock - The most recently ALREADY ACCEPTED block.
    */
-  constructor(name, broadcast) {
-    super(broadcast);
+  constructor(name, broadcast, startingBlock) {
+    super(broadcast, startingBlock);
 
     // Used for debugging only.
     this.name = name;
-
-    this.previousBlocks = {};
   }
 
   /**
    * Starts listeners and begins mining.
-   * 
-   * @param {Block} startingBlock - This is the latest block with a proof.
-   *      The miner will try to add new blocks on top of it.
    */
-  initialize(startingBlock) {
-    this.currentBlock = startingBlock;
+  initialize() {
     this.startNewSearch();
 
     this.on(START_MINING, this.findProof);
-    this.on(PROOF_FOUND, this.receiveBlock);
     this.on(POST_TRANSACTION, this.addTransaction);
 
     this.emit(START_MINING);
@@ -51,23 +44,9 @@ module.exports = class Miner extends Client {
 
   /**
    * Sets up the miner to start searching for a new block.
-   * 
-   * @param {boolean} reuseRewardAddress - If set, the miner's previous
-   *      coinbase reward address will be reused.
    */
-  startNewSearch(reuseRewardAddress=false) {
-    // Creating a new address for receiving coinbase rewards.
-    // We reuse the old address if 
-    if (!reuseRewardAddress) {
-      this.rewardAddress = this.wallet.makeAddress();
-    }
-
-    // Create a new block, chained to the previous block.
-    let b = new Block(this.rewardAddress, this.currentBlock);
-
-    // Store the previous block, and then switch over to the new block.
-    this.previousBlocks[b.prevBlockHash] = this.currentBlock;
-    this.currentBlock = b;
+  startNewSearch() {
+    this.currentBlock = new Block(this.address, this.lastBlock);
 
     // Start looking for a proof at 0.
     this.currentBlock.proof = 0;
@@ -77,18 +56,16 @@ module.exports = class Miner extends Client {
    * Looks for a "proof".  It breaks after some time to listen for messages.  (We need
    * to do this since JS does not support concurrency).
    * 
-   * The 'oneAndDone' field is used
-   * for testing only; it prevents the findProof method from looking for the proof again
-   * after the first attempt.
+   * The 'oneAndDone' field is used for testing only; it prevents the findProof method
+   * from looking for the proof again after the first attempt.
    * 
    * @param {boolean} oneAndDone - Give up after the first PoW search (testing only).
    */
   findProof(oneAndDone=false) {
     let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
     while (this.currentBlock.proof < pausePoint) {
-      if (this.currentBlock.verifyProof()) {
+      if (this.currentBlock.hasValidProof()) {
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
-        this.reapRewards();
         this.announceProof();
         this.startNewSearch();
         break;
@@ -110,65 +87,31 @@ module.exports = class Miner extends Client {
   }
 
   /**
-   * Verifies if a blocks proof is valid and all of its
-   * transactions are valid.
-   * 
-   * @param {Block} b - The new block to be verified.
-   */
-  isValidBlock(b) {
-    // FIXME: Should verify that a block chains back to a previously accepted block.
-    if (!b.verifyProof()) {
-      this.log(`Invalid proof.`);
-      return false;
-    }
-
-    // FIXME: Blocks are incorrectly rejected with the below code.
-    // The issue seems to be that UTXOs are already spent, and hence
-    // spending them again is no longer valid.
-    //
-    // Note that this method works fine with other parts of the code.
-    /*
-    if (!b.isValid(b.mergeOutputs(b.utxos, b.usedOutputs))) {
-      this.log(`Invalid block.`);
-      return false;
-    }
-    */
-
-    return true;
-  }
-
-  /**
    * Receives a block from another miner. If it is valid,
    * the block will be stored. If it is also a longer chain,
    * the miner will accept it and replace the currentBlock.
    * 
-   * @param {string} s - The block in serialized form.
+   * @param {Block | String} s - The block, usually in serialized form.
    */
   receiveBlock(s) {
-    let b = Block.deserialize(s);
-    // FIXME: should not rely on the other block for the utxos.
-    if (!this.isValidBlock(b)) {
-      this.log(`rejecting invalid block: ${s}`);
-      return false;
-    }
+    let b = super.receiveBlock(s);
 
-    // If we don't have it, we store it in case we need it later.
-    if (!this.previousBlocks[b.hashVal()]) {
-      this.previousBlocks[b.hashVal()] = b;
-    }
+    if (b === null) return null;
 
     // We switch over to the new chain only if it is better.
-    if (b.chainLength > this.currentBlock.chainLength) {
+    if (this.currentBlock && b.chainLength > this.currentBlock.chainLength) {
       this.log(`cutting over to new chain.`);
-      this.syncTransactions(b);
-      this.currentBlock = b;
-      this.startNewSearch(true);
+      this.syncTransactions();
+      this.startNewSearch();
     }
   }
 
   /**
-   * **NOT YET IMPLEMENTED**  This function should determine what outputs
-   * need to be added or deleted, without relying on the new block's UTXO set. 
+   * **NOT YET IMPLEMENTED**  This function should determine what transactions
+   * need to be added or deleted.  It should find a common ancestor (retrieving
+   * any transactions from the rolled-back blocks), remove any transactions
+   * already included in the newly accepted blocks, and add any remanining
+   * transactions to the new block.
    * 
    * @param {Block} newBlock - The newly accepted block.
    */
@@ -183,28 +126,7 @@ module.exports = class Miner extends Client {
    * @param {Transaction} tx - The transaction to add.
    */
   addTransaction(tx) {
-    if (!this.currentBlock.willAcceptTransaction(tx)) {
-      return false;
-    }
-    // FIXME: Toss out duplicate transactions, but store pending transactions.
-    this.currentBlock.addTransaction(tx);
-    return true;
+    return this.currentBlock.addTransaction(tx);
   }
 
-  /**
-   * After finding a proof, collect the mining rewards.
-   */
-  reapRewards() {
-    let tx = this.currentBlock.coinbaseTX;
-    this.wallet.addUTXO(tx.outputs[0], tx.id, 0);
-  }
-
-  /**
-   * Like console.log, but includes the miner's name to make debugging easier.
-   * 
-   * @param {String} msg - The message to display to the console.
-   */
-  log(msg) {
-    console.log(`${this.name}: ${msg}`);
-  }
 }
