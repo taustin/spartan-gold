@@ -29,7 +29,6 @@ module.exports = class Block {
     b.chainLength = parseInt(o.chainLength);
     b.prevBlockHash = o.prevBlockHash;
     b.proof = o.proof;
-    b.target = new BigInteger(o.target, 16);
     b.timestamp = o.timestamp;
     b.rewardAddr = o.rewardAddr;
 
@@ -117,7 +116,6 @@ module.exports = class Block {
     return `{ "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},` +
       ` "prevBlockHash": "${this.prevBlockHash}",` +
       ` "timestamp": "${this.timestamp}",` +
-      ` "target": "${this.target}",` +
       ` "proof": "${this.proof}",` +
       ` "rewardAddr": "${this.rewardAddr}",` +
       ` "chainLength": "${this.chainLength}" }`;

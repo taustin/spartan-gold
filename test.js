@@ -45,8 +45,6 @@ describe("Transaction", () => {
 });
 
 describe('Block', () => {
-  let addr = utils.calcAddress(kp.public);
-
   let prevBlock = new Block("8e7912");
   prevBlock.balances = new Map([ [addr, 500], ["ffff", 100], ["face", 99] ]);
 
@@ -109,9 +107,14 @@ describe('Block', () => {
       tx.sign(kp.private);
       b.addTransaction(tx);
 
+      let hash = b.hashVal();
+
       let serialBlock = b.serialize();
       let b2 = Block.deserialize(serialBlock);
       b2.replay(prevBlock);
+
+      // Verify hashes still match
+      assert.equal(b2.hashVal(), hash);
 
       assert.equal(b2.balances.get(addr), 500-61);
       assert.equal(b2.balances.get("ffff"), 100+20);
