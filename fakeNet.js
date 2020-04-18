@@ -46,7 +46,7 @@ module.exports = class FakeNet {
      */
     sendMessage(name, msg, o) {
         let client = this.clients[name];
-        client.emit(msg, o);
+        setTimeout(() => client.emit(msg, o), 0);
     }
 
 }
