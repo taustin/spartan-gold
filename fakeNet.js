@@ -4,25 +4,22 @@
  * Simulates a network by using events to enable simpler testing.
  */
 module.exports = class FakeNet {
-    
+
     constructor() {
-        this.clients = {};
-        this.clientCtr = 0;
+        this.clients = new Map();
     }
-    
+
     /**
      * Registers clients to the network.
-     * Clients receive a random identity (e.g. client0, client1...)
-     * Miners are registered by name.
-     * In the future, may change this method to register by public key regardless of miner/client.
-     * 
+     * Clients and Miners are registered by public key.
+     *
      * @param {...Object} clientList - clients to be registered to this network (may be Client or Miner)
      */
     register(...clientList) {
-        clientList.forEach(client => {
+        for (const client of clientList) {
             console.log(`Registering ${client.address}`);
-            this.clients[client.address] = client;
-        });
+            this.clients.set(client.address, client);
+        }
     }
 
     /**
@@ -32,20 +29,20 @@ module.exports = class FakeNet {
      * @param {Object} o - payload of the message
      */
     broadcast(msg, o) {
-        Object.keys(this.clients).forEach((clientName) => {
-            this.sendMessage(clientName, msg, o);
-        });
+        for (const address of this.clients.keys()) {
+            this.sendMessage(address, msg, o);
+        }
     }
 
     /**
      * Sends message msg and payload o directly to Client name.
      * 
-     * @param {String} name - the name of the client or miner to which to send the message
+     * @param {String} address - the public key address of the client or miner to which to send the message
      * @param {String} msg - the name of the event being broadcasted (e.g. "PROOF_FOUND")
-     * @param {Objejct} o - payload of the message
+     * @param {Object} o - payload of the message
      */
-    sendMessage(name, msg, o) {
-        let client = this.clients[name];
+    sendMessage(address, msg, o) {
+        const client = this.clients.get(address);
         setTimeout(() => client.emit(msg, o), 0);
     }
 
