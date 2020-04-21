@@ -43,12 +43,36 @@ module.exports = class Block {
   }
 
   /**
+   * Produces a new genesis block, giving the specified clients
+   * the specified amount of starting gold.  This method will also
+   * set the genesis block for every client passed in.
+   * 
+   * @param {Map.<Client, number>} clientBalanceMap - A map of clients to
+   *    their starting amount of gold.
+   * 
+   * @returns {Block} - The genesis block.
+   */
+  static makeGenesis(clientBalanceMap) {
+    let g = new Block();
+
+    for (let [client, balance] of clientBalanceMap.entries()) {
+      g.balances.set(client.address, balance);
+    }
+
+    for (let client of clientBalanceMap.keys()) {
+      client.setGenesisBlock(g);
+    }
+
+    return g;
+  }
+
+  /**
    * Creates a new Block.  Note that the previous block will not be stored;
    * instead, its hash value will be maintained in this block.
    * 
    * @constructor
    * @param {String} rewardAddr - The address to receive all mining rewards for this block.
-   * @param {Block} prevBlock - The previous block in the blockchain.
+   * @param {Block} [prevBlock] - The previous block in the blockchain.
    * @param {Number} [target] - The POW target.  The miner must find a proof that
    *      produces a smaller value when hashed.
    * @param {Number} [coinbaseReward] - The gold that a miner earns for finding a block proof.
@@ -61,7 +85,7 @@ module.exports = class Block {
     // Note that balances are NOT part of the serialized format.
     this.balances = prevBlock ? new Map(prevBlock.balances) : new Map();
 
-    if (prevBlock) {
+    if (prevBlock && prevBlock.rewardAddr) {
       // Add the previous block's rewards to the miner who found the proof.
       let winnerBalance = this.balanceOf(prevBlock.rewardAddr) || 0;
       this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());

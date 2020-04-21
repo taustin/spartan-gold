@@ -9,6 +9,7 @@ let utils = require('./utils.js');
 
 const PROOF_FOUND = "PROOF_FOUND";
 const POST = "POST_TRANSACTION";
+const MISSING = "MISSING_BLOCK";
 
 const DEFAULT_TX_FEE = 1;
 
@@ -46,6 +47,39 @@ module.exports = class Client extends EventEmitter {
     // avoids replay attacks.
     this.nonce = 0;
 
+    // FIXME: Need to restore pending amounts and transactions.
+    this.pendingSpent = 0;
+
+    // A map of transactions received but not yet confirmed.
+    this.pendingReceivedTransactions = new Map();
+
+    // A map of all block hashes to the accepted blocks.
+    this.blocks = new Map();
+
+    // A map of missing block IDS to the list of blocks depending
+    // on the missing blocks.
+    this.pendingBlocks = new Map();
+
+    if (startingBlock) {
+      this.setGenesisBlock(startingBlock);
+    }
+
+    // Setting up listeners to receive messages from other clients.
+    this.on(PROOF_FOUND, this.receiveBlock);
+    this.on(MISSING, this.provideMissingBlock)
+  }
+
+  /**
+   * The genesis block can only be set if the client does not already
+   * have the genesis block.
+   * 
+   * @param {Block} startingBlock - The genesis block of the blockchain.
+   */
+  setGenesisBlock(startingBlock) {
+    if (this.lastBlock) {
+      throw new Error("Cannot set genesis block for existing blockchain.");
+    }
+
     // Transactions from this block or older are assumed to be confirmed,
     // and therefore are spendable by the client. The transactions could
     // roll back, but it is unlikely.
@@ -55,20 +89,7 @@ module.exports = class Client extends EventEmitter {
     // up to lastBlock are considered pending.
     this.lastBlock = startingBlock;
 
-    // FIXME: Need to restore pending amounts and transactions.
-    this.pendingSpent = 0;
-
-    // A map of transactions received but not yet confirmed.
-    this.pendingReceivedTransactions = new Map();
-
-    this.on(PROOF_FOUND, this.receiveBlock);
-
-    // A map of all block hashes to the accepted blocks.
-    this.blocks = new Map([[startingBlock.id, startingBlock]]);
-
-    // A map of missing block IDS to the list of blocks depending
-    // on the missing blocks.
-    this.pendingBlocks = new Map();
+    this.blocks.set(startingBlock.id, startingBlock);
   }
 
   /**
@@ -159,14 +180,17 @@ module.exports = class Client extends EventEmitter {
     // If we don't, request the missing blocks and exit.
     let prevBlock = this.blocks.get(block.prevBlockHash);
     if (!prevBlock) {
-      this.requestMissingBlocks(block);
-      // Add the block to the list of pending blocks, if we don't have it already.
-      // FIXME: Change this to a set instead of a list?  And fix the horrible naming.
-      let pendingBlocks = this.pendingBlocks.get(block.prevBlockHash) || [];
-      if (!pendingBlocks.find(b => b.id === block.id)) {
-        pendingBlocks.push(block);
+      let stuckBlocks = this.pendingBlocks.get(block.prevBlockHash);
+
+      // If this is the first time that we have identified this block as missing,
+      // send out a request for the block.
+      if (stuckBlocks === undefined) { 
+        this.requestMissingBlock(block);
+        stuckBlocks = new Set();
       }
-      this.pendingBlocks.set(block.prevBlockHash, pendingBlocks);
+      stuckBlocks.add(block);
+
+      this.pendingBlocks.set(block.prevBlockHash, stuckBlocks);
       return null;
     }
 
@@ -185,11 +209,13 @@ module.exports = class Client extends EventEmitter {
       this.setLastConfirmed();
     }
 
-    // Go through any pending blocks and recursively call receiveBlock
-    let pending = this.pendingBlocks.get(block.id) || [];
+    // Go through any blocks that were waiting for this block
+    // and recursively call receiveBlock.
+    let unstuckBlocks = this.pendingBlocks.get(block.id) || [];
     // Remove these blocks from the pending set.
     this.pendingBlocks.delete(block.id);
-    pending.forEach((b) => {
+    unstuckBlocks.forEach((b) => {
+      this.log(`Processing unstuck block ${b.id}`);
       this.receiveBlock(b);
     });
 
@@ -197,18 +223,33 @@ module.exports = class Client extends EventEmitter {
   }
 
   /**
-   * NOT YET IMPLEMENTED!
-   * 
-   * Request the previous block (or blocks?) from the network.
+   * Request the previous block from the network.
    * 
    * @param {Block} block - The block that is connected to a missing block.
    */
-  requestMissingBlocks(block) {
-    // Placeholder
-    console.log(`Asking for missing blocks for ${block.id}. prev:${block.prevBlockHash}`);
-    this.blocks.forEach((b,id) => {
-      console.log(`id: ${id}`)
-    });
+  requestMissingBlock(block) {
+    this.log(`Asking for missing block: ${block.prevBlockHash}`);
+    let msg = {
+      from: this.address,
+      missing: block.prevBlockHash,
+    }
+    this.net.broadcast(MISSING, JSON.stringify(msg));
+  }
+
+  /**
+   * Takes a JSON-formatted string, parses it, and identifies the
+   * request for a misssing block.  If the client has the block,
+   * it will send the block to the client that requested it.
+   * 
+   * @param {string} msg - JSON-formatted string.
+   */
+  provideMissingBlock(msg) {
+    let o = JSON.parse(msg);
+    if (this.blocks.has(o.missing)) {
+      this.log(`Providing missing block ${o.missing}`);
+      let block = this.blocks.get(o.missing);
+      this.net.sendMessage(o.from, PROOF_FOUND, block.serialize());
+    }
   }
 
   /**

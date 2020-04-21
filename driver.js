@@ -8,28 +8,29 @@ let FakeNet = require('./fakeNet.js');
 
 console.log("Starting simulation.  This may take a moment...");
 
-// Creating genesis block
-let genesis = new Block();
 
 let fakeNet = new FakeNet();
 
 // Clients
-let alice = new Client(fakeNet, genesis);
-let bob = new Client(fakeNet, genesis);
-let charlie = new Client(fakeNet, genesis);
+let alice = new Client(fakeNet);
+let bob = new Client(fakeNet);
+let charlie = new Client(fakeNet);
 
 // Miners
-let minnie = new Miner("Minnie", fakeNet, genesis);
-let mickey = new Miner("Mickey", fakeNet, genesis);
+let minnie = new Miner("Minnie", fakeNet);
+let mickey = new Miner("Mickey", fakeNet);
 
-// Setting initial gold.
-genesis.balances = new Map([
-  [alice.address, 133],
-  [bob.address, 99],
-  [charlie.address, 67],
-  [minnie.address, 400],
-  [mickey.address, 322],
-]);
+// Creating genesis block
+let genesis = Block.makeGenesis(new Map([
+  [alice, 133],
+  [bob, 99],
+  [charlie, 67],
+  [minnie, 400],
+  [mickey, 322],
+]));
+
+// Late miner
+let donald = new Miner("Donald", fakeNet, genesis);
 
 function showBalances(client) {
   console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} gold.`);
@@ -37,6 +38,7 @@ function showBalances(client) {
   console.log(`Charlie has ${client.lastBlock.balanceOf(charlie.address)} gold.`);
   console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} gold.`);
   console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} gold.`);
+  console.log(`Donald has ${client.lastBlock.balanceOf(donald.address)} gold.`);
 }
 
 // Showing the initial balances from Alice's perspective, for no particular reason.
@@ -53,6 +55,14 @@ mickey.initialize();
 console.log(`Alice is transfering 40 gold to ${bob.address}`);
 alice.postTransaction([{ amount: 40, address: bob.address }]);
 
+setTimeout(() => {
+  console.log();
+  console.log("***Starting a late-to-the-party miner***");
+  console.log();
+  fakeNet.register(donald);
+  donald.initialize();
+}, 2000)
+
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
   console.log();
@@ -62,12 +72,19 @@ setTimeout(() => {
   console.log(`Mickey has a chain of length ${mickey.currentBlock.chainLength}:`);
 
   console.log();
+  console.log(`Donald has a chain of length ${donald.currentBlock.chainLength}:`);
+
+  console.log();
   console.log("Final balances (Minnie's perspective):");
   showBalances(minnie);
 
   console.log();
   console.log("Final balances (Alice's perspective):");
   showBalances(alice);
+
+  console.log();
+  console.log("Final balances (Donald's perspective):");
+  showBalances(donald);
 
   throw "TERMINATE";
 }, 5000);
