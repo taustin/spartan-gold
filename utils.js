@@ -13,7 +13,7 @@ exports.hash = function hash(s, encoding) {
 
 exports.generateKeypair = function() {
   const kp = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 2048,
+    modulusLength: 512,
       publicKeyEncoding: {
         type: 'spki',
         format: 'pem'
