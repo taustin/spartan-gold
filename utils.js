@@ -1,7 +1,6 @@
 "use strict";
 
 let crypto = require('crypto');
-var keypair = require('keypair');
 
 // CRYPTO settings
 const HASH_ALG = 'sha256';
@@ -13,7 +12,21 @@ exports.hash = function hash(s, encoding) {
 }
 
 exports.generateKeypair = function() {
-  return keypair();
+  const kp = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 512,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+      }
+  });
+  return {
+    public: kp.publicKey,
+    private: kp.privateKey,
+  };
 }
 
 exports.sign = function(privKey, msg) {
