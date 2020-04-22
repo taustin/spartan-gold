@@ -86,5 +86,5 @@ setTimeout(() => {
   console.log("Final balances (Donald's perspective):");
   showBalances(donald);
 
-  throw "TERMINATE";
+  process.exit(0);
 }, 5000);
