@@ -4,6 +4,7 @@
   "description": "A simplified blockchain-based cryptocurrency for experimentation",
   "main": "index.js",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "test": "mocha"
   },
   "repository": {
@@ -24,5 +25,12 @@
     "chai": "^4.2.0",
     "jsbn": "^1.1.0",
     "mocha": "^5.2.0"
+  },
+  "devDependencies": {
+    "minimist": "^1.2.5",
+    "mkdirp": "^1.0.4"
+  },
+  "resolutions": {
+    "mkdirp": "^1.0.4"
   }
 }
