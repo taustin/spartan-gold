@@ -136,10 +136,10 @@ describe('Client', () => {
   let t2 = new Transaction({from: addr, pubKey: kp.public, outputs: outputs2, fee: 1, nonce: 1});
   t2.sign(kp.private);
 
-  let clint = new Client(net, genesis);
+  let clint = new Client({net: net, startingBlock: genesis});
   clint.log = function(){};
 
-  let miner = new Miner("Minnie", net, genesis);
+  let miner = new Miner({name: "Minnie", net: net, startingBlock: genesis});
   miner.log = function(){};
 
   describe('#receiveBlock', () => {

@@ -18,16 +18,18 @@ module.exports = class Miner extends Client {
    * The initialize method kicks things off.
    * 
    * @constructor
-   * @param {String} name - The miner's name, used for debugging messages.
+   * @param {Object} obj - The properties of the client.
+   * @param {String} [obj.name] - The miner's name, used for debugging messages.
    * * @param {Object} net - The network that the miner will use
    *      to send messages to all other clients.
-   * @param {Block} startingBlock - The most recently ALREADY ACCEPTED block.
+   * @param {Block} [startingBlock] - The most recently ALREADY ACCEPTED block.
+   * @param {Number} [miningRounds] - The number of rounds a miner mines before checking
+   *      for messages.  (In single-threaded mode with FakeNet, this parameter can
+   *      simulate miners with more or less mining power.)
    */
-  constructor(name, net, startingBlock) {
-    super(net, startingBlock);
-
-    // Used for debugging only.
-    this.name = name;
+  constructor({name, net, startingBlock, miningRounds=NUM_ROUNDS_MINING} = {}) {
+    super({name, net, startingBlock});
+    this.miningRounds=miningRounds;
   }
 
   /**
@@ -62,7 +64,7 @@ module.exports = class Miner extends Client {
    * @param {boolean} oneAndDone - Give up after the first PoW search (testing only).
    */
   findProof(oneAndDone=false) {
-    let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
+    let pausePoint = this.currentBlock.proof + this.miningRounds;
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.hasValidProof()) {
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);

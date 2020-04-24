@@ -30,14 +30,17 @@ module.exports = class Client extends EventEmitter {
    * simplify our testing setup.)
    * 
    * @constructor
-   * @param {Object} net - The network used by the client
-   *    to send messages to all miners and clients, or.
-   * @param {Block} - The starting point of the blockchain for the client.
+   * @param {Object} obj - The properties of the client.
+   * @param {String} [obj.name] - The client's name, used for debugging messages.
+   * @param {Object} obj.net - The network used by the client
+   *    to send messages to all miners and clients.
+   * @param {Block} [obj.startingBlock] - The starting point of the blockchain for the client.
    */
-  constructor(net, startingBlock) {
+  constructor({name, net, startingBlock} = {}) {
     super();
 
     this.net = net;
+    this.name = name;
 
     this.keyPair = utils.generateKeypair();
     this.address = utils.calcAddress(this.keyPair.public);

@@ -9,5 +9,3 @@ ISSUES (named by MMDD-##)
 
 0417-04 -- Refactor paying out of rewards.
 
-0420-01 -- Allow clients to take specify a name for debugging.
-
