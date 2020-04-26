@@ -257,7 +257,7 @@ module.exports = class Block {
    */
   totalRewards() {
     return [...this.transactions].reduce(
-      (reward, [_, tx]) => reward + tx.fee,
+      (reward, [, tx]) => reward + tx.fee,
       this.coinbaseReward);
   }
 }

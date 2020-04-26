@@ -47,6 +47,7 @@ maleficent.on("PROOF_FOUND", (block) => {
 });
 
 
+/*
 // Creating genesis block
 let genesis = Block.makeGenesis(new Map([
   [alice, 133],
@@ -56,6 +57,7 @@ let genesis = Block.makeGenesis(new Map([
   [mickey, 322],
   [maleficent, 10],
 ]));
+*/
 
 function showBalances(client) {
   console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} gold.`);
