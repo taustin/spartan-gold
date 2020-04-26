@@ -7,10 +7,6 @@ let Transaction = require('./transaction.js');
 
 let utils = require('./utils.js');
 
-const PROOF_FOUND = "PROOF_FOUND";
-const POST = "POST_TRANSACTION";
-const MISSING = "MISSING_BLOCK";
-
 const DEFAULT_TX_FEE = 1;
 
 // If a block is 6 blocks older than the current block, it is considered
@@ -23,6 +19,10 @@ const CONFIRMED_DEPTH = 6;
  * It can send and receive messages on the Blockchain network.
  */
 module.exports = class Client extends EventEmitter {
+  // Network message types
+  static get MISSING_BLOCK() { return "MISSING_BLOCK"; }
+  static get POST_TRANSACTION() { return "POST_TRANSACTION"; }
+  static get PROOF_FOUND() { return "PROOF_FOUND"; }
 
   /**
    * The net object determines how the client communicates
@@ -68,8 +68,8 @@ module.exports = class Client extends EventEmitter {
     }
 
     // Setting up listeners to receive messages from other clients.
-    this.on(PROOF_FOUND, this.receiveBlock);
-    this.on(MISSING, this.provideMissingBlock)
+    this.on(Client.PROOF_FOUND, this.receiveBlock);
+    this.on(Client.MISSING_BLOCK, this.provideMissingBlock)
   }
 
   /**
@@ -145,7 +145,7 @@ module.exports = class Client extends EventEmitter {
 
     this.nonce++;
 
-    this.net.broadcast(POST, tx);
+    this.net.broadcast(Client.POST_TRANSACTION, tx);
   }
 
   /**
@@ -236,7 +236,7 @@ module.exports = class Client extends EventEmitter {
       from: this.address,
       missing: block.prevBlockHash,
     }
-    this.net.broadcast(MISSING, JSON.stringify(msg));
+    this.net.broadcast(Client.MISSING_BLOCK, JSON.stringify(msg));
   }
 
   /**
@@ -251,7 +251,7 @@ module.exports = class Client extends EventEmitter {
     if (this.blocks.has(o.missing)) {
       this.log(`Providing missing block ${o.missing}`);
       let block = this.blocks.get(o.missing);
-      this.net.sendMessage(o.from, PROOF_FOUND, block.serialize());
+      this.net.sendMessage(o.from, Client.PROOF_FOUND, block.serialize());
     }
   }
 
