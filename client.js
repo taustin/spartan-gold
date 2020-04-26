@@ -150,7 +150,7 @@ module.exports = class Client extends EventEmitter {
 
   /**
    * Validates and adds a block to the list of blocks, possibly updating the head
-   * of the blockchain.  Any transactions in the block are replayed in order to
+   * of the blockchain.  Any transactions in the block are rerun in order to
    * update the gold balances for all clients.  If any transactions are found to be
    * invalid due to lack of funds, the block is rejected and 'null' is returned to
    * indicate failure.
@@ -161,7 +161,7 @@ module.exports = class Client extends EventEmitter {
    * 
    * @param {Block | string} block - The block to add to the clients list of available blocks.
    * 
-   * @returns {Block | null} The block with replayed transactions, or null for an invalid block.
+   * @returns {Block | null} The block with rerun transactions, or null for an invalid block.
    */
   receiveBlock(block) {
     // If the block is a string, then deserialize it.
@@ -199,7 +199,7 @@ module.exports = class Client extends EventEmitter {
 
     // Verify the block, and store it if everything looks good.
     // This code will trigger an exception if there are any invalid transactions.
-    let success = block.replay(prevBlock);
+    let success = block.rerun(prevBlock);
     if (!success) return null;
 
     // Storing the block.

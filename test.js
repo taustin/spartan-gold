@@ -49,7 +49,7 @@ describe('Block', () => {
   prevBlock.balances = new Map([ [addr, 500], ["ffff", 100], ["face", 99] ]);
 
   let outputs = [{amount: 20, address: "ffff"}, {amount: 40, address: "face"}];
-  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 1});
+  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 0});
 
   describe('#addTransaction', () => {
     it("should fail if a transaction is not signed.", () => {
@@ -75,9 +75,21 @@ describe('Block', () => {
       assert.equal(b.balances.get("ffff"), 100+20);
       assert.equal(b.balances.get("face"), 99+40);
     });
+
+    it("should ignore any transactions that were already received in a previous block.", () => {
+      let b = new Block(addr, prevBlock);
+      let tx = new Transaction(t);
+      tx.sign(kp.private);
+      b.addTransaction(tx);
+
+      // Attempting to add transaction to subsequent block.
+      let b2 = new Block(addr, b);
+      b2.addTransaction(tx);
+      assert.isEmpty(b2.transactions);
+    });
   });
 
-  describe('#replay', () => {
+  describe('#rerun', () => {
     it("should redo transactions to return to the same block.", () => {
       let b = new Block(addr, prevBlock);
 
@@ -85,9 +97,9 @@ describe('Block', () => {
       tx.sign(kp.private);
       b.addTransaction(tx);
 
-      // Wiping out balances and then replaying
+      // Wiping out balances and then rerunning the block
       b.balances = new Map();
-      b.replay(prevBlock);
+      b.rerun(prevBlock);
 
       // Verifying prevBlock's balances are unchanged.
       assert.equal(prevBlock.balances.get(addr), 500);
@@ -111,7 +123,7 @@ describe('Block', () => {
 
       let serialBlock = b.serialize();
       let b2 = Block.deserialize(serialBlock);
-      b2.replay(prevBlock);
+      b2.rerun(prevBlock);
 
       // Verify hashes still match
       assert.equal(b2.hashVal(), hash);
@@ -129,7 +141,7 @@ describe('Client', () => {
   let net = { broadcast: function(){} };
 
   let outputs = [{amount: 20, address: "ffff"}, {amount: 40, address: "face"}];
-  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 1});
+  let t = new Transaction({from: addr, pubKey: kp.public, outputs: outputs, fee: 1, nonce: 0});
   t.sign(kp.private);
 
   let outputs2 = [{amount: 10, address: "face"}];

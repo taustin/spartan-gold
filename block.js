@@ -81,9 +81,10 @@ module.exports = class Block {
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.target = target;
 
-    // Get the balances from the previous block, if available.
-    // Note that balances are NOT part of the serialized format.
+    // Get the balances and nonces from the previous block, if available.
+    // Note that balances and nonces are NOT part of the serialized format.
     this.balances = prevBlock ? new Map(prevBlock.balances) : new Map();
+    this.nextNonce = prevBlock ? new Map(prevBlock.nextNonce) : new Map();
 
     if (prevBlock && prevBlock.rewardAddr) {
       // Add the previous block's rewards to the miner who found the proof.
@@ -132,7 +133,7 @@ module.exports = class Block {
 
   /**
    * Converts a Block into string form.  Some fields are deliberately omitted.
-   * Note that Block.deserialize plus block.replay should restore the block.
+   * Note that Block.deserialize plus block.rerun should restore the block.
    * 
    * @returns {String} - The block in JSON format.
    */
@@ -188,6 +189,20 @@ module.exports = class Block {
       return false;
     }
 
+    // Checking and updating nonce value.
+    // This portion prevents replay attacks.
+    let nonce = this.nextNonce.get(tx.from) || 0;
+    if (tx.nonce < nonce) {
+      if (client) client.log(`Replayed transaction ${tx.id}.`);
+      return false;
+    } else if (tx.nonce > nonce) {
+      // FIXME: Need to do something to handle this case more gracefully.
+      if (client) client.log(`Out of order transaction ${tx.id}.`);
+      return false;
+    } else {
+      this.nextNonce.set(tx.from, nonce + 1);
+    }
+
     // Adding the transaction to the block
     this.transactions.set(tx.id, tx);
 
@@ -205,18 +220,20 @@ module.exports = class Block {
   }
 
   /**
-   * When a block is received from another party, it does not include balances.  This method
-   * restores those balances be wiping out and re-adding all transactions.  This process also
-   * identifies if any transactions were invalid due to insufficient funds, in which case the
-   * block should be rejected.
+   * When a block is received from another party, it does not include balances or a record of
+   * the latest nonces for each client.  This method restores this information be wiping out
+   * and re-adding all transactions.  This process also identifies if any transactions were
+   * invalid due to insufficient funds or replayed transactions, in which case the block
+   * should be rejected.
    * 
    * @param {Block} prevBlock - The previous block in the blockchain, used for initial balances.
    * 
    * @returns {Boolean} - True if the block's transactions are all valid.
    */
-  replay(prevBlock) {
+  rerun(prevBlock) {
     // Setting balances to the previous block's balances.
     this.balances = new Map(prevBlock.balances);
+    this.nextNonce = new Map(prevBlock.nextNonce);
 
     // Adding coinbase reward for prevBlock.
     let winnerBalance = this.balanceOf(prevBlock.rewardAddr);
