@@ -4,6 +4,7 @@
   "description": "A simplified blockchain-based cryptocurrency for experimentation",
   "main": "index.js",
   "scripts": {
+    "lint": "npx eslint **/*.js",
     "preinstall": "npx npm-force-resolutions",
     "test": "mocha"
   },
