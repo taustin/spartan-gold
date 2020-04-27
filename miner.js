@@ -5,29 +5,30 @@ let Client = require('./client.js');
 
 const NUM_ROUNDS_MINING = 2000;
 
-const PROOF_FOUND = "PROOF_FOUND";
-const START_MINING = "START_MINING";
-const POST_TRANSACTION = "POST_TRANSACTION";
-
 /**
  * Miners are clients, but they also mine blocks looking for "proofs".
  */
 module.exports = class Miner extends Client {
+  // Network message types
+  static get START_MINING() { return "START_MINING"; }
+
   /**
    * When a new miner is created, but the PoW search is **not** yet started.
    * The initialize method kicks things off.
    * 
    * @constructor
-   * @param {String} name - The miner's name, used for debugging messages.
+   * @param {Object} obj - The properties of the client.
+   * @param {String} [obj.name] - The miner's name, used for debugging messages.
    * * @param {Object} net - The network that the miner will use
    *      to send messages to all other clients.
-   * @param {Block} startingBlock - The most recently ALREADY ACCEPTED block.
+   * @param {Block} [startingBlock] - The most recently ALREADY ACCEPTED block.
+   * @param {Number} [miningRounds] - The number of rounds a miner mines before checking
+   *      for messages.  (In single-threaded mode with FakeNet, this parameter can
+   *      simulate miners with more or less mining power.)
    */
-  constructor(name, net, startingBlock) {
-    super(net, startingBlock);
-
-    // Used for debugging only.
-    this.name = name;
+  constructor({name, net, startingBlock, miningRounds=NUM_ROUNDS_MINING} = {}) {
+    super({name, net, startingBlock});
+    this.miningRounds=miningRounds;
   }
 
   /**
@@ -36,10 +37,10 @@ module.exports = class Miner extends Client {
   initialize() {
     this.startNewSearch();
 
-    this.on(START_MINING, this.findProof);
-    this.on(POST_TRANSACTION, this.addTransaction);
+    this.on(Miner.START_MINING, this.findProof);
+    this.on(Client.POST_TRANSACTION, this.addTransaction);
 
-    this.emit(START_MINING);
+    this.emit(Miner.START_MINING);
   }
 
   /**
@@ -62,7 +63,7 @@ module.exports = class Miner extends Client {
    * @param {boolean} oneAndDone - Give up after the first PoW search (testing only).
    */
   findProof(oneAndDone=false) {
-    let pausePoint = this.currentBlock.proof + NUM_ROUNDS_MINING;
+    let pausePoint = this.currentBlock.proof + this.miningRounds;
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.hasValidProof()) {
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
@@ -76,7 +77,7 @@ module.exports = class Miner extends Client {
     // If we are testing, don't continue the search.
     if (!oneAndDone) {
       // Check if anyone has found a block, and then return to mining.
-      setTimeout(() => this.emit(START_MINING), 0);
+      setTimeout(() => this.emit(Miner.START_MINING), 0);
     }
   }
 
@@ -84,7 +85,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(PROOF_FOUND, this.currentBlock.serialize());
+    this.net.broadcast(this.PROOF_FOUND, this.currentBlock.serialize());
   }
 
   /**

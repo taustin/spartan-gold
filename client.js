@@ -7,10 +7,6 @@ let Transaction = require('./transaction.js');
 
 let utils = require('./utils.js');
 
-const PROOF_FOUND = "PROOF_FOUND";
-const POST = "POST_TRANSACTION";
-const MISSING = "MISSING_BLOCK";
-
 const DEFAULT_TX_FEE = 1;
 
 // If a block is 6 blocks older than the current block, it is considered
@@ -23,6 +19,10 @@ const CONFIRMED_DEPTH = 6;
  * It can send and receive messages on the Blockchain network.
  */
 module.exports = class Client extends EventEmitter {
+  // Network message types
+  static get MISSING_BLOCK() { return "MISSING_BLOCK"; }
+  static get POST_TRANSACTION() { return "POST_TRANSACTION"; }
+  static get PROOF_FOUND() { return "PROOF_FOUND"; }
 
   /**
    * The net object determines how the client communicates
@@ -30,14 +30,17 @@ module.exports = class Client extends EventEmitter {
    * simplify our testing setup.)
    * 
    * @constructor
-   * @param {Object} net - The network used by the client
-   *    to send messages to all miners and clients, or.
-   * @param {Block} - The starting point of the blockchain for the client.
+   * @param {Object} obj - The properties of the client.
+   * @param {String} [obj.name] - The client's name, used for debugging messages.
+   * @param {Object} obj.net - The network used by the client
+   *    to send messages to all miners and clients.
+   * @param {Block} [obj.startingBlock] - The starting point of the blockchain for the client.
    */
-  constructor(net, startingBlock) {
+  constructor({name, net, startingBlock} = {}) {
     super();
 
     this.net = net;
+    this.name = name;
 
     this.keyPair = utils.generateKeypair();
     this.address = utils.calcAddress(this.keyPair.public);
@@ -65,8 +68,8 @@ module.exports = class Client extends EventEmitter {
     }
 
     // Setting up listeners to receive messages from other clients.
-    this.on(PROOF_FOUND, this.receiveBlock);
-    this.on(MISSING, this.provideMissingBlock)
+    this.on(Client.PROOF_FOUND, this.receiveBlock);
+    this.on(Client.MISSING_BLOCK, this.provideMissingBlock)
   }
 
   /**
@@ -142,12 +145,12 @@ module.exports = class Client extends EventEmitter {
 
     this.nonce++;
 
-    this.net.broadcast(POST, tx);
+    this.net.broadcast(Client.POST_TRANSACTION, tx);
   }
 
   /**
    * Validates and adds a block to the list of blocks, possibly updating the head
-   * of the blockchain.  Any transactions in the block are replayed in order to
+   * of the blockchain.  Any transactions in the block are rerun in order to
    * update the gold balances for all clients.  If any transactions are found to be
    * invalid due to lack of funds, the block is rejected and 'null' is returned to
    * indicate failure.
@@ -158,7 +161,7 @@ module.exports = class Client extends EventEmitter {
    * 
    * @param {Block | string} block - The block to add to the clients list of available blocks.
    * 
-   * @returns {Block | null} The block with replayed transactions, or null for an invalid block.
+   * @returns {Block | null} The block with rerun transactions, or null for an invalid block.
    */
   receiveBlock(block) {
     // If the block is a string, then deserialize it.
@@ -196,7 +199,7 @@ module.exports = class Client extends EventEmitter {
 
     // Verify the block, and store it if everything looks good.
     // This code will trigger an exception if there are any invalid transactions.
-    let success = block.replay(prevBlock);
+    let success = block.rerun(prevBlock);
     if (!success) return null;
 
     // Storing the block.
@@ -233,7 +236,7 @@ module.exports = class Client extends EventEmitter {
       from: this.address,
       missing: block.prevBlockHash,
     }
-    this.net.broadcast(MISSING, JSON.stringify(msg));
+    this.net.broadcast(Client.MISSING_BLOCK, JSON.stringify(msg));
   }
 
   /**
@@ -248,7 +251,7 @@ module.exports = class Client extends EventEmitter {
     if (this.blocks.has(o.missing)) {
       this.log(`Providing missing block ${o.missing}`);
       let block = this.blocks.get(o.missing);
-      this.net.sendMessage(o.from, PROOF_FOUND, block.serialize());
+      this.net.sendMessage(o.from, Client.PROOF_FOUND, block.serialize());
     }
   }
 

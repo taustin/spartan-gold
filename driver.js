@@ -12,13 +12,13 @@ console.log("Starting simulation.  This may take a moment...");
 let fakeNet = new FakeNet();
 
 // Clients
-let alice = new Client(fakeNet);
-let bob = new Client(fakeNet);
-let charlie = new Client(fakeNet);
+let alice = new Client({name: "Alice", net: fakeNet});
+let bob = new Client({name: "Bob", net: fakeNet});
+let charlie = new Client({name: "Charlie", net: fakeNet});
 
 // Miners
-let minnie = new Miner("Minnie", fakeNet);
-let mickey = new Miner("Mickey", fakeNet);
+let minnie = new Miner({name: "Minnie", net: fakeNet});
+let mickey = new Miner({name: "Mickey", net: fakeNet});
 
 // Creating genesis block
 let genesis = Block.makeGenesis(new Map([
@@ -29,8 +29,9 @@ let genesis = Block.makeGenesis(new Map([
   [mickey, 322],
 ]));
 
-// Late miner
-let donald = new Miner("Donald", fakeNet, genesis);
+// Late miner - Donald has more mining power, represented by the miningRounds.
+// (Mickey and Minnie have the default of 2000 rounds).
+let donald = new Miner({name: "Donald", net: fakeNet, startingBlock: genesis, miningRounds: 3000});
 
 function showBalances(client) {
   console.log(`Alice has ${client.lastBlock.balanceOf(alice.address)} gold.`);
@@ -86,5 +87,5 @@ setTimeout(() => {
   console.log("Final balances (Donald's perspective):");
   showBalances(donald);
 
-  throw "TERMINATE";
+  process.exit(0);
 }, 5000);
