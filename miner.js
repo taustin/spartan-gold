@@ -117,9 +117,11 @@ module.exports = class Miner extends Client {
    * 
    * @param {Block} newBlock - The newly accepted block.
    */
+  /*
   syncTransactions(newBlock) {
     // TBD...
   }
+  */
 
   /**
    * Returns false if transaction is not accepted. Otherwise adds
