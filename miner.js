@@ -85,7 +85,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(this.PROOF_FOUND, this.currentBlock.serialize());
+    this.net.broadcast(Client.PROOF_FOUND, this.currentBlock.serialize());
   }
 
   /**
@@ -103,7 +103,7 @@ module.exports = class Miner extends Client {
     // We switch over to the new chain only if it is better.
     if (this.currentBlock && b.chainLength > this.currentBlock.chainLength) {
       this.log(`cutting over to new chain.`);
-      this.syncTransactions();
+      //this.syncTransactions();
       this.startNewSearch();
     }
   }
