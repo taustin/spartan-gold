@@ -173,16 +173,15 @@ module.exports = class Client extends EventEmitter {
     if (this.blocks.has(block.id)) return null;
 
     // First, make sure that the block has a valid proof. 
-    if (!block.hasValidProof()) {
-      //throw new Error(`Block ${block.id} does not have a valid proof ${block.proof}.`);
+    if (!block.hasValidProof() && !block.isGenesisBlock()) {
       this.log(`Block ${block.id} does not have a valid proof.`);
       return null;
     }
 
-    // Make sure that we have the previous blocks.
-    // If we don't, request the missing blocks and exit.
+    // Make sure that we have the previous blocks, unless it is the genesis block.
+    // If we don't have the previous blocks, request the missing blocks and exit.
     let prevBlock = this.blocks.get(block.prevBlockHash);
-    if (!prevBlock) {
+    if (!prevBlock && !block.isGenesisBlock()) {
       let stuckBlocks = this.pendingBlocks.get(block.prevBlockHash);
 
       // If this is the first time that we have identified this block as missing,
@@ -197,10 +196,12 @@ module.exports = class Client extends EventEmitter {
       return null;
     }
 
-    // Verify the block, and store it if everything looks good.
-    // This code will trigger an exception if there are any invalid transactions.
-    let success = block.rerun(prevBlock);
-    if (!success) return null;
+    if (!block.isGenesisBlock()) {
+      // Verify the block, and store it if everything looks good.
+      // This code will trigger an exception if there are any invalid transactions.
+      let success = block.rerun(prevBlock);
+      if (!success) return null;
+    }
 
     // Storing the block.
     this.blocks.set(block.id, block);
@@ -276,8 +277,9 @@ module.exports = class Client extends EventEmitter {
    * according to the client's own perspective of the network.
    */
   showAllBalances() {
+    this.log("Showing final balances:");
     for (let [id,balance] of this.lastConfirmedBlock.balances) {
-      this.log(`${id}: ${balance}`);
+      console.log(`    ${id}: ${balance}`);
     }
   }
  

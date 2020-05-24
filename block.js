@@ -27,18 +27,25 @@ module.exports = class Block {
     let b = new Block();
     let o = JSON.parse(str);
     b.chainLength = parseInt(o.chainLength);
-    b.prevBlockHash = o.prevBlockHash;
-    b.proof = o.proof;
     b.timestamp = o.timestamp;
-    b.rewardAddr = o.rewardAddr;
 
+    if (b.isGenesisBlock()) {
+      // Balances need to be recreated and restored in a map.
+      o.balances.forEach(([clientID,amount]) => {
+        b.balances.set(clientID, amount);
+      });
+    } else {
+      b.prevBlockHash = o.prevBlockHash;
+      b.proof = o.proof;
+      b.rewardAddr = o.rewardAddr;
+      // Likewise, transactions need to be recreated and restored in a map.
+      b.transactions = new Map();
+      o.transactions.forEach(([txID,txJson]) => {
+        let tx = new Transaction(txJson);
+        b.transactions.set(txID, tx);
+      });
+    }
 
-    // Transactions need to be recreated and restored in a map.
-    b.transactions = new Map();
-    o.transactions.forEach(([txID,txJson]) => {
-      let tx = new Transaction(txJson);
-      b.transactions.set(txID, tx);
-    });
     return b;
   }
 
@@ -95,6 +102,16 @@ module.exports = class Block {
     // Storing transactions in a Map to preserve key order.
     this.transactions = new Map();
 
+    // Adding toJSON methods for transactions and balances, which help with
+    // serialization.
+    // this.transactions.toJSON = () => {
+    //   return JSON.stringify(Array.from(this.transactions.entries()));
+    // }
+    // this.balances.toJSON = () => {
+    //   return JSON.stringify(Array.from(this.balances.entries()));
+    // }
+
+
     // Used to determine the winner between competing chains.
     // Note that this is a little simplistic -- an attacker
     // could make a long, but low-work chain.  However, this works
@@ -116,7 +133,7 @@ module.exports = class Block {
    * @returns {Boolean} - True if this is the first block in the chain.
    */
   isGenesisBlock() {
-    return !this.prevBlockHash;
+    return this.chainLength === 0;
   }
 
   /**
@@ -138,12 +155,27 @@ module.exports = class Block {
    * @returns {String} - The block in JSON format.
    */
   serialize() {
-    return `{ "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},` +
-      ` "prevBlockHash": "${this.prevBlockHash}",` +
-      ` "timestamp": "${this.timestamp}",` +
-      ` "proof": "${this.proof}",` +
-      ` "rewardAddr": "${this.rewardAddr}",` +
-      ` "chainLength": "${this.chainLength}" }`;
+   if (this.isGenesisBlock()) {
+     // The genesis block does not contain a proof or transactions,
+     // but is the only block than can specify balances.
+     return `
+        {"chainLength": "${this.chainLength}",
+         "timestamp": "${this.timestamp}",
+         "balances": ${JSON.stringify(Array.from(this.balances.entries()))}
+        }
+     `;
+   } else {
+     // Other blocks must specify transactions and proof details.
+     return `
+        {"chainLength": "${this.chainLength}",
+         "timestamp": "${this.timestamp}",
+         "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},
+         "prevBlockHash": "${this.prevBlockHash}",
+         "proof": "${this.proof}",
+         "rewardAddr": "${this.rewardAddr}"
+        }
+     `;
+   }
   }
 
   /**

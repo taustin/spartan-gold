@@ -46,4 +46,15 @@ module.exports = class FakeNet {
     setTimeout(() => client.emit(msg, o), 0);
   }
 
+  /**
+   * Tests whether a client is registered with the network.
+   * 
+   * @param {Client} client - the client to test for.
+   * 
+   * @returns {boolean} True if the client is already registered.
+   */
+  recognizes(client) {
+    return this.clients.has(client.address);
+  }
+
 }
