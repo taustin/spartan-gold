@@ -1,4 +1,5 @@
 const net = require('net');
+const readline = require('readline');
 
 const FakeNet = require('./fakeNet.js');
 const Block = require('./block.js');
@@ -6,11 +7,9 @@ const Miner = require('./miner.js');
 
 class TcpNet extends FakeNet {
   sendMessage(address, msg, o) {
-    //console.log(`Calling sendMessage ${msg}`);
     let data = {msg, o};
     const client = this.clients.get(address);
     let clientConnection = net.connect(client.connection, () => {
-      //console.log(`Writing ${data.msg} to ${JSON.stringify(client.connection)}`);
       clientConnection.write(JSON.stringify(data));
     });
   }
@@ -22,12 +21,13 @@ class TcpMiner extends Miner {
 
   constructor({name, startingBlock, miningRounds, connection} = {}) {
     super({name, net: new TcpNet(), startingBlock, miningRounds});
+
+    // Setting up the server to listen for connections
     this.connection = connection;
     this.srvr = net.createServer();
     this.srvr.on('connection', (client) => {
       this.log('Received connection');
       client.on('data', (data) => {
-        //this.log(`Received data: ${data}`);
         let {msg, o} = JSON.parse(data);
         if (msg === TcpMiner.REGISTER) {
           if (!this.net.recognizes(o)) {
@@ -39,7 +39,7 @@ class TcpMiner extends Miner {
           this.emit(msg, o);
         }
       });
-    })
+    });
   }
 
   registerWith(minerConnection) {
@@ -66,13 +66,6 @@ class TcpMiner extends Miner {
 
   }
 
-  showMenu() {
-    console.log("What would you like to do?");
-    console.log("(t)ransfer funds?");
-    console.log("show (b)alances?");
-    console.log("show (p)ending transactions?");
-    console.log("(e)xit?");
-  }
 }
 
 if (process.argv.length < 3) {
@@ -91,7 +84,58 @@ console.log(`Starting ${name}`);
 let minnie = new TcpMiner({name: name, connection: conn, startingBlock: emptyGenesis});
 minnie.initialize(...knownMiners);
 
-setTimeout(() => {
-  minnie.showAllBalances();
-  process.exit(0);
-},5000);
+// Silencing the logging messages
+minnie.log = function(){};
+
+let rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function readUserInput() {
+  rl.question(`
+  Funds: ${this.availableGold}
+  
+  What would you like to do?
+  *(t)ransfer funds?
+  *show (b)alances?
+  *show (p)ending transactions?
+  *e(x)it?
+  
+  Your choice: `, (answer) => {
+    console.clear();
+    switch (answer.trim().toLowerCase()) {
+      case 'x':
+        console.log(`Shutting down.  Have a nice day.`);
+        process.exit(0);
+      // eslint-disable-next-line no-fallthrough
+      case 'b':
+        console.log("  Balances: ");
+        minnie.showAllBalances();
+        break;
+      case 't':
+        rl.question(`  amount: `, (amt) => {
+          if (amt > minnie.availableGold) {
+            console.log(`***Insufficient gold.  You only have ${minnie.availableGold}.`);
+          } else {
+            rl.question(`  address: `, (addr) => {
+              let output = {amount: amt, address: addr};
+              console.log(`Transfering ${amt} gold to ${addr}.`);
+              minnie.postTransaction([output]);
+            });
+          }
+        });
+        break;
+      case 'p':
+        console.log("Coming soon.");
+        break;
+      default:
+        console.log(`Unrecognized choice: ${answer}`);
+    }
+    console.log();
+    setTimeout(readUserInput, 0);
+  });
+}
+
+readUserInput();
+
