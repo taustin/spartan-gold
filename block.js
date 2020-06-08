@@ -19,13 +19,12 @@ module.exports = class Block {
   /**
    * Converts a string representation of a block to a new Block instance.
    * 
-   * @param {string} str - A string representing a block in JSON format.
+   * @param {Object} o - An object representing a block, but not an instance of Block.
    * 
    * @returns {Block}
    */
-  static deserialize(str) {
+  static deserialize(o) {
     let b = new Block();
-    let o = JSON.parse(str);
     b.chainLength = parseInt(o.chainLength);
     b.timestamp = o.timestamp;
 
@@ -40,7 +39,7 @@ module.exports = class Block {
       b.rewardAddr = o.rewardAddr;
       // Likewise, transactions need to be recreated and restored in a map.
       b.transactions = new Map();
-      o.transactions.forEach(([txID,txJson]) => {
+      if (o.transactions) o.transactions.forEach(([txID,txJson]) => {
         let tx = new Transaction(txJson);
         b.transactions.set(txID, tx);
       });
@@ -155,27 +154,63 @@ module.exports = class Block {
    * @returns {String} - The block in JSON format.
    */
   serialize() {
-   if (this.isGenesisBlock()) {
-     // The genesis block does not contain a proof or transactions,
-     // but is the only block than can specify balances.
-     return `
-        {"chainLength": "${this.chainLength}",
-         "timestamp": "${this.timestamp}",
-         "balances": ${JSON.stringify(Array.from(this.balances.entries()))}
-        }
-     `;
-   } else {
-     // Other blocks must specify transactions and proof details.
-     return `
-        {"chainLength": "${this.chainLength}",
-         "timestamp": "${this.timestamp}",
-         "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},
-         "prevBlockHash": "${this.prevBlockHash}",
-         "proof": "${this.proof}",
-         "rewardAddr": "${this.rewardAddr}"
-        }
-     `;
-   }
+    return JSON.stringify(this);
+   //if (this.isGenesisBlock()) {
+   //  // The genesis block does not contain a proof or transactions,
+   //  // but is the only block than can specify balances.
+   //  /*******return `
+   //     {"chainLength": "${this.chainLength}",
+   //      "timestamp": "${this.timestamp}",
+   //      "balances": ${JSON.stringify(Array.from(this.balances.entries()))}
+   //     }
+   //  `;****/
+   //  let o = {
+   //    chainLength: this.chainLength,
+   //    timestamp: this.timestamp,
+   //    balances: Array.from(this.balances.entries()),
+   //  };
+   //  return JSON.stringify(o, ['chainLength', 'timestamp', 'balances']);
+   //} else {
+   //  // Other blocks must specify transactions and proof details.
+   //  /******return `
+   //     {"chainLength": "${this.chainLength}",
+   //      "timestamp": "${this.timestamp}",
+   //      "transactions": ${JSON.stringify(Array.from(this.transactions.entries()))},
+   //      "prevBlockHash": "${this.prevBlockHash}",
+   //      "proof": "${this.proof}",
+   //      "rewardAddr": "${this.rewardAddr}"
+   //     }
+   //  `;*****/
+   //  let o = {
+   //    chainLength: this.chainLength,
+   //    timestamp: this.timestamp,
+   //    transactions: Array.from(this.transactions.entries()),
+   //    prevBlockHash: this.prevBlockHash,
+   //    proof: this.proof,
+   //    rewardAddr: this.rewardAddr,
+   //  };
+   //  return JSON.stringify(o, ['chainLength', 'timestamp', 'transactions',
+   //       'prevBlockHash', 'proof', 'rewardAddr']);
+   //}
+  }
+
+  toJSON() {
+    let o = {
+      chainLength: this.chainLength,
+      timestamp: this.timestamp,
+    };
+    if (this.isGenesisBlock()) {
+      // The genesis block does not contain a proof or transactions,
+      // but is the only block than can specify balances.
+      o.balances = Array.from(this.balances.entries());
+    } else {
+      // Other blocks must specify transactions and proof details.
+      o.transactions = Array.from(this.transactions.entries());
+      o.prevBlockHash = this.prevBlockHash;
+      o.proof = this.proof;
+      o.rewardAddr = this.rewardAddr;
+    }
+    return o;
   }
 
   /**
@@ -309,4 +344,4 @@ module.exports = class Block {
       (reward, [, tx]) => reward + tx.fee,
       this.coinbaseReward);
   }
-}
+};

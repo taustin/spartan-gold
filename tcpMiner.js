@@ -5,8 +5,12 @@ const FakeNet = require('./fakeNet.js');
 const Block = require('./block.js');
 const Miner = require('./miner.js');
 
+/**
+ * This extends the FakeNet class to actually communicate over the network.
+ */
 class TcpNet extends FakeNet {
   sendMessage(address, msg, o) {
+    if (typeof o === 'string') o = JSON.parse(o);
     let data = {msg, o};
     const client = this.clients.get(address);
     let clientConnection = net.connect(client.connection, () => {
@@ -16,6 +20,10 @@ class TcpNet extends FakeNet {
 
 }
 
+/**
+ * Provides a command line interface for a SpartanGold miner
+ * that will actually communicate over the network.
+ */
 class TcpMiner extends Miner {
   static get REGISTER() { return "REGISTER"; }
 
@@ -42,6 +50,11 @@ class TcpMiner extends Miner {
     });
   }
 
+  /**
+   * Connects with the miner specified using the connection details provided.
+   * 
+   * @param {Object} minerConnection - The connection information for the other miner.
+   */
   registerWith(minerConnection) {
     this.log(`Connection: ${JSON.stringify(minerConnection)}`);
     let conn = net.connect(minerConnection, () => {
@@ -63,13 +76,12 @@ class TcpMiner extends Miner {
     for (let m of knownMinerConnections) {
       this.registerWith(m);
     }
-
   }
 
 }
 
 if (process.argv.length < 3) {
-  console.error(`Usage: ${process.argv[0]} ${process.argv[1]} <port>`);
+  console.error(`Usage: ${process.argv[0]} ${process.argv[1]} <port> [<known miner port> ...]`);
   process.exit();
 }
 let port = process.argv[2];
@@ -82,10 +94,12 @@ let emptyGenesis = new Block();
 
 console.log(`Starting ${name}`);
 let minnie = new TcpMiner({name: name, connection: conn, startingBlock: emptyGenesis});
-minnie.initialize(...knownMiners);
 
 // Silencing the logging messages
 minnie.log = function(){};
+
+// Register with known miners and begin mining.
+minnie.initialize(...knownMiners);
 
 let rl = readline.createInterface({
   input: process.stdin,
@@ -94,12 +108,15 @@ let rl = readline.createInterface({
 
 function readUserInput() {
   rl.question(`
-  Funds: ${this.availableGold}
+  Funds: ${minnie.availableGold}
+  Address: ${minnie.address}
   
   What would you like to do?
+  *(c)onnect to miner?
   *(t)ransfer funds?
   *show (b)alances?
   *show (p)ending transactions?
+  *show blocks for (d)ebugging and exit?
   *e(x)it?
   
   Your choice: `, (answer) => {
@@ -108,10 +125,17 @@ function readUserInput() {
       case 'x':
         console.log(`Shutting down.  Have a nice day.`);
         process.exit(0);
-      // eslint-disable-next-line no-fallthrough
+        /* falls through */
       case 'b':
         console.log("  Balances: ");
         minnie.showAllBalances();
+        break;
+      case 'c':
+        rl.question(`  port: `, (p) => {
+          minnie.registerWith({port: p});
+          console.log(`Registering with miner at port ${p}`);
+          readUserInput();
+        });
         break;
       case 't':
         rl.question(`  amount: `, (amt) => {
@@ -122,6 +146,7 @@ function readUserInput() {
               let output = {amount: amt, address: addr};
               console.log(`Transfering ${amt} gold to ${addr}.`);
               minnie.postTransaction([output]);
+              readUserInput();
             });
           }
         });
@@ -129,6 +154,16 @@ function readUserInput() {
       case 'p':
         console.log("Coming soon.");
         break;
+      case 'd':
+        minnie.blocks.forEach((block) => {
+          let s = "";
+          block.transactions.forEach((tx) => s += `${tx.id} `);
+          if (s !== "") console.log(`${block.id} transactions: ${s}`);
+        });
+        console.log();
+        minnie.showBlockchain();
+        process.exit(0);
+        /* falls through */
       default:
         console.log(`Unrecognized choice: ${answer}`);
     }

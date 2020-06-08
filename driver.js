@@ -62,7 +62,7 @@ setTimeout(() => {
   console.log();
   fakeNet.register(donald);
   donald.initialize();
-}, 2000)
+}, 2000);
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {

@@ -2,6 +2,7 @@
 
 let Block = require('./block.js');
 let Client = require('./client.js');
+let Transaction = require('./transaction.js');
 
 const NUM_ROUNDS_MINING = 2000;
 
@@ -85,7 +86,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(Client.PROOF_FOUND, this.currentBlock.serialize());
+    this.net.broadcast(Client.PROOF_FOUND, this.currentBlock);
   }
 
   /**
@@ -93,7 +94,7 @@ module.exports = class Miner extends Client {
    * the block will be stored. If it is also a longer chain,
    * the miner will accept it and replace the currentBlock.
    * 
-   * @param {Block | String} s - The block, usually in serialized form.
+   * @param {Block | Object} b - The block
    */
   receiveBlock(s) {
     let b = super.receiveBlock(s);
@@ -127,10 +128,13 @@ module.exports = class Miner extends Client {
    * Returns false if transaction is not accepted. Otherwise adds
    * the transaction to the current block.
    * 
-   * @param {Transaction} tx - The transaction to add.
+   * @param {Transaction | String} tx - The transaction to add.
    */
   addTransaction(tx) {
+    if (!(tx instanceof Transaction)){
+      tx = new Transaction(tx);
+    }
     return this.currentBlock.addTransaction(tx);
   }
 
-}
+};

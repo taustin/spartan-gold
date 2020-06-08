@@ -122,7 +122,8 @@ describe('Block', () => {
       let hash = b.hashVal();
 
       let serialBlock = b.serialize();
-      let b2 = Block.deserialize(serialBlock);
+      let o = JSON.parse(serialBlock);
+      let b2 = Block.deserialize(o);
       b2.rerun(prevBlock);
 
       // Verify hashes still match

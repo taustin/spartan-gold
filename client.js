@@ -69,7 +69,7 @@ module.exports = class Client extends EventEmitter {
 
     // Setting up listeners to receive messages from other clients.
     this.on(Client.PROOF_FOUND, this.receiveBlock);
-    this.on(Client.MISSING_BLOCK, this.provideMissingBlock)
+    this.on(Client.MISSING_BLOCK, this.provideMissingBlock);
   }
 
   /**
@@ -159,13 +159,13 @@ module.exports = class Client extends EventEmitter {
    * they are added to a list of pending blocks and a request is sent out to get the
    * missing blocks from other clients.
    * 
-   * @param {Block | string} block - The block to add to the clients list of available blocks.
+   * @param {Block | Object} block - The block to add to the clients list of available blocks.
    * 
    * @returns {Block | null} The block with rerun transactions, or null for an invalid block.
    */
   receiveBlock(block) {
     // If the block is a string, then deserialize it.
-    if (typeof block === 'string') {
+    if (!(block instanceof Block)) {
       block = Block.deserialize(block);
     }
 
@@ -236,23 +236,25 @@ module.exports = class Client extends EventEmitter {
     let msg = {
       from: this.address,
       missing: block.prevBlockHash,
-    }
-    this.net.broadcast(Client.MISSING_BLOCK, JSON.stringify(msg));
+    };
+    //this.net.broadcast(Client.MISSING_BLOCK, JSON.stringify(msg));
+    this.net.broadcast(Client.MISSING_BLOCK, msg);
   }
 
   /**
-   * Takes a JSON-formatted string, parses it, and identifies the
-   * request for a misssing block.  If the client has the block,
-   * it will send the block to the client that requested it.
+   * Takes an object representing a request for a misssing block.
+   * If the client has the block, it will send the block to the
+   * client that requested it.
    * 
-   * @param {string} msg - JSON-formatted string.
+   * @param {Object} msg - Request for a missing block.
+   * @param {String} msg.missing - ID of the missing block.
    */
   provideMissingBlock(msg) {
-    let o = JSON.parse(msg);
-    if (this.blocks.has(o.missing)) {
-      this.log(`Providing missing block ${o.missing}`);
-      let block = this.blocks.get(o.missing);
-      this.net.sendMessage(o.from, Client.PROOF_FOUND, block.serialize());
+    if (this.blocks.has(msg.missing)) {
+      this.log(`Providing missing block ${msg.missing}`);
+      let block = this.blocks.get(msg.missing);
+      //this.net.sendMessage(msg.from, Client.PROOF_FOUND, block.serialize());
+      this.net.sendMessage(msg.from, Client.PROOF_FOUND, block);
     }
   }
 
@@ -294,5 +296,18 @@ module.exports = class Client extends EventEmitter {
     let name = this.name || this.address.substring(0,10);
     console.log(`${name}: ${msg}`);
   }
-}
+
+  /**
+   * Print out the blocks in the blockchain from the current head
+   * to the genesis block.  Only the Block IDs are printed.
+   */
+  showBlockchain() {
+    let block = this.lastBlock;
+    console.log("BLOCKCHAIN:");
+    while (block !== undefined) {
+      console.log(block.id);
+      block = this.blocks.get(block.prevBlockHash);
+    }
+  }
+};
 

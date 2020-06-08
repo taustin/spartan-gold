@@ -37,7 +37,13 @@ module.exports = class Transaction {
     this.pubKey = pubKey;
     this.sig = sig;
     this.fee = fee;
-    this.outputs = outputs;
+    this.outputs = [];
+    if (outputs) outputs.forEach(({amount, address}) => {
+      if (typeof amount !== 'number') {
+        amount = parseInt(amount);
+      }
+      this.outputs.push({amount, address});
+    });
   }
 
   /**
@@ -87,4 +93,4 @@ module.exports = class Transaction {
   totalOutput() {
     return this.outputs.reduce( (totalValue, {amount}) => totalValue + amount, this.fee);
   }
-}
+};
