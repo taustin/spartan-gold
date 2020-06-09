@@ -50,8 +50,9 @@ module.exports = class Client extends EventEmitter {
     // avoids replay attacks.
     this.nonce = 0;
 
-    // FIXME: Need to restore pending amounts and transactions.
-    this.pendingSpent = 0;
+    // A map of transactions where the client has spent money,
+    // but where the transaction has not yet been confirmed.
+    this.pendingOutgoingTransactions = new Map();
 
     // A map of transactions received but not yet confirmed.
     this.pendingReceivedTransactions = new Map();
@@ -111,7 +112,12 @@ module.exports = class Client extends EventEmitter {
    * transactions is treated as unavailable.
    */
   get availableGold() {
-    return this.confirmedBalance - this.pendingSpent;
+    let pendingSpent = 0;
+    this.pendingOutgoingTransactions.forEach((tx) => {
+      pendingSpent += tx.totalOutput();
+    });
+
+    return this.confirmedBalance - pendingSpent;
   }
 
   /**
@@ -142,6 +148,9 @@ module.exports = class Client extends EventEmitter {
     });
 
     tx.sign(this.keyPair.private);
+
+    // Adding transaction to pending.
+    this.pendingOutgoingTransactions.set(tx.id, tx);
 
     this.nonce++;
 
@@ -259,7 +268,8 @@ module.exports = class Client extends EventEmitter {
   }
 
   /**
-   * Sets the last confirmed block according to the most recently accepted block.
+   * Sets the last confirmed block according to the most recently accepted block,
+   * also updating pending transactions according to this block.
    * Note that the genesis block is always considered to be confirmed.
    */
   setLastConfirmed() {
@@ -272,6 +282,13 @@ module.exports = class Client extends EventEmitter {
       block = this.blocks.get(block.prevBlockHash);
     }
     this.lastConfirmedBlock = block;
+
+    // Update pending transactions according to the new last confirmed block.
+    this.pendingOutgoingTransactions.forEach((tx, txID) => {
+      if (this.lastConfirmedBlock.contains(tx)) {
+        this.pendingOutgoingTransactions.delete(txID);
+      }
+    });
   }
 
   /**
@@ -310,4 +327,3 @@ module.exports = class Client extends EventEmitter {
     }
   }
 };
-

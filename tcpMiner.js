@@ -27,6 +27,11 @@ class TcpNet extends FakeNet {
 class TcpMiner extends Miner {
   static get REGISTER() { return "REGISTER"; }
 
+  /**
+   * In addition to the usual properties for a miner, the constructor
+   * also takes a JSON object for the connection information and sets
+   * up a listener to listen for incoming connections.
+   */
   constructor({name, startingBlock, miningRounds, connection} = {}) {
     super({name, net: new TcpNet(), startingBlock, miningRounds});
 
@@ -70,6 +75,9 @@ class TcpMiner extends Miner {
     });
   }
 
+  /**
+   * Begins mining and registers with any known miners.
+   */
   initialize(...knownMinerConnections) {
     super.initialize();
     this.srvr.listen(this.connection.port);
@@ -78,6 +86,16 @@ class TcpMiner extends Miner {
     }
   }
 
+  /**
+   * Prints out a list of any pending outgoing transactions.
+   */
+  showPendingOut() {
+    let s = "";
+    this.pendingOutgoingTransactions.forEach((tx) => {
+      s += `\n    id:${tx.id} nonce:${tx.nonce} totalOutput: ${tx.totalOutput()}\n`;
+    });
+    return s;
+  }
 }
 
 if (process.argv.length < 3) {
@@ -110,12 +128,13 @@ function readUserInput() {
   rl.question(`
   Funds: ${minnie.availableGold}
   Address: ${minnie.address}
+  Pending transactions: ${minnie.showPendingOut()}
   
   What would you like to do?
   *(c)onnect to miner?
   *(t)ransfer funds?
+  *(r)esend pending transactions?
   *show (b)alances?
-  *show (p)ending transactions?
   *show blocks for (d)ebugging and exit?
   *e(x)it?
   
@@ -151,7 +170,7 @@ function readUserInput() {
           }
         });
         break;
-      case 'p':
+      case 'r':
         console.log("Coming soon.");
         break;
       case 'd':

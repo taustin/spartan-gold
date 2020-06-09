@@ -344,4 +344,17 @@ module.exports = class Block {
       (reward, [, tx]) => reward + tx.fee,
       this.coinbaseReward);
   }
+
+  /**
+   * Determines whether a transaction is in the block.  Note that only the
+   * block itself is checked; if it returns false, the transaction might
+   * still be included in one of its ancestor blocks.
+   *
+   * @param {Transaction} tx - The transaction that we are checking for.
+   *
+   * @returns {boolean} - True if the transaction is contained in this block.
+   */
+  contains(tx) {
+    return this.transactions.has(tx.id);
+  }
 };
