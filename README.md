@@ -1,4 +1,4 @@
-# spartan-gold
+# SpartanGold
 
 SpartanGold (SG) is a simplified blockchain-based cryptocurrency for education and experimentation.
 
