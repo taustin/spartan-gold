@@ -171,7 +171,7 @@ function readUserInput() {
         });
         break;
       case 'r':
-        console.log("Coming soon.");
+        minnie.resendPendingTransactions();
         break;
       case 'd':
         minnie.blocks.forEach((block) => {

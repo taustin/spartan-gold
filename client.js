@@ -251,6 +251,15 @@ module.exports = class Client extends EventEmitter {
   }
 
   /**
+   * Resend any transactions in the pending list.
+   */
+  resendPendingTransactions() {
+    this.pendingOutgoingTransactions.forEach((tx) => {
+      this.net.broadcast(Client.POST_TRANSACTION, tx);
+    });
+  }
+
+  /**
    * Takes an object representing a request for a misssing block.
    * If the client has the block, it will send the block to the
    * client that requested it.
