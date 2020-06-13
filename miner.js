@@ -46,9 +46,13 @@ module.exports = class Miner extends Client {
 
   /**
    * Sets up the miner to start searching for a new block.
+   * 
+   * @param {Set} [txSet] - Transactions the miner has that have not been accepted yet.
    */
-  startNewSearch() {
+  startNewSearch(txSet=new Set()) {
     this.currentBlock = new Block(this.address, this.lastBlock);
+
+    txSet.forEach((tx) => this.addTransaction(tx));
 
     // Start looking for a proof at 0.
     this.currentBlock.proof = 0;
@@ -104,8 +108,8 @@ module.exports = class Miner extends Client {
     // We switch over to the new chain only if it is better.
     if (this.currentBlock && b.chainLength > this.currentBlock.chainLength) {
       this.log(`cutting over to new chain.`);
-      //this.syncTransactions();
-      this.startNewSearch();
+      let txSet = this.syncTransactions(b);
+      this.startNewSearch(txSet);
     }
   }
 
@@ -116,13 +120,37 @@ module.exports = class Miner extends Client {
    * already included in the newly accepted blocks, and add any remanining
    * transactions to the new block.
    * 
-   * @param {Block} newBlock - The newly accepted block.
+   * @param {Block} nb - The newly accepted block.
+   * 
+   * @returns {Set} - The set of transactions that have not yet been accepted by the new block.
    */
-  /*
-  syncTransactions(newBlock) {
-    // TBD...
+  syncTransactions(nb) {
+    let cb = this.currentBlock;
+    let cbTxs = new Set();
+    let nbTxs = new Set();
+
+    // The new block may be ahead of the old block.  We roll back the new chain
+    // to the matching height, collecting any transactions.
+    while (nb.chainLength > cb.chainLength) {
+      nb.transactions.forEach((tx) => nbTxs.add(tx));
+      nb = this.blocks.get(nb.prevBlockHash);
+    }
+
+    // Step back in sync until we hit the common ancestor.
+    while (cb && cb.id !== nb.id) {
+      // Store any transactions in the two chains.
+      cb.transactions.forEach((tx) => cbTxs.add(tx));
+      nb.transactions.forEach((tx) => nbTxs.add(tx));
+
+      cb = this.blocks.get(cb.prevBlockHash);
+      nb = this.blocks.get(nb.prevBlockHash);
+    }
+
+    // Remove all transactions that the new chain already has.
+    nbTxs.forEach((tx) => cbTxs.delete(tx));
+
+    return cbTxs;
   }
-  */
 
   /**
    * Returns false if transaction is not accepted. Otherwise adds
