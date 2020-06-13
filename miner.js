@@ -106,7 +106,7 @@ module.exports = class Miner extends Client {
     if (b === null) return null;
 
     // We switch over to the new chain only if it is better.
-    if (this.currentBlock && b.chainLength > this.currentBlock.chainLength) {
+    if (this.currentBlock && b.chainLength >= this.currentBlock.chainLength) {
       this.log(`cutting over to new chain.`);
       let txSet = this.syncTransactions(b);
       this.startNewSearch(txSet);
