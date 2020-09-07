@@ -2,8 +2,10 @@ const net = require('net');
 const readline = require('readline');
 
 const FakeNet = require('./fakeNet.js');
+const Blockchain = require('./blockchain.js');
 const Block = require('./block.js');
 const Miner = require('./miner.js');
+const Transaction = require('./transaction.js');
 
 /**
  * This extends the FakeNet class to actually communicate over the network.
@@ -96,6 +98,7 @@ class TcpMiner extends Miner {
     });
     return s;
   }
+
 }
 
 if (process.argv.length < 3) {
@@ -108,7 +111,10 @@ let name = `Miner${port}`;
 
 let knownMiners = process.argv.slice(3);
 
-let emptyGenesis = new Block();
+let emptyGenesis = Blockchain.makeGenesis(new Map([]), {
+  Block: Block,
+  Transaction: Transaction
+});
 
 console.log(`Starting ${name}`);
 let minnie = new TcpMiner({name: name, connection: conn, startingBlock: emptyGenesis});
@@ -158,12 +164,13 @@ function readUserInput() {
         break;
       case 't':
         rl.question(`  amount: `, (amt) => {
+          amt = parseInt(amt);
           if (amt > minnie.availableGold) {
             console.log(`***Insufficient gold.  You only have ${minnie.availableGold}.`);
           } else {
             rl.question(`  address: `, (addr) => {
               let output = {amount: amt, address: addr};
-              console.log(`Transfering ${amt} gold to ${addr}.`);
+              console.log(`Transferring ${amt} gold to ${addr}.`);
               minnie.postTransaction([output]);
               readUserInput();
             });

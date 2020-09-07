@@ -28,10 +28,11 @@ module.exports = class Transaction {
    *          transactions, this should be the block height.
    * @param obj.pubKey - Public key associated with the specified from address.
    * @param obj.sig - Signature of the transaction.  This field may be ommitted.
-   * @param obj.fee - The amount of gold offered as a transaction fee.
    * @param {Array} obj.outputs - An array of the outputs.
+   * @param obj.fee - The amount of gold offered as a transaction fee.
+   * @param obj.data - Object with any additional properties desired for the transaction.
    */
-  constructor({from, nonce, pubKey, sig, outputs, fee=0}) {
+  constructor({from, nonce, pubKey, sig, outputs, fee=0, data={}}) {
     this.from = from;
     this.nonce = nonce;
     this.pubKey = pubKey;
@@ -44,6 +45,7 @@ module.exports = class Transaction {
       }
       this.outputs.push({amount, address});
     });
+    this.data = data;
   }
 
   /**
@@ -55,7 +57,8 @@ module.exports = class Transaction {
       nonce: this.nonce,
       pubKey: this.pubKey,
       outputs: this.outputs,
-      fee: this.fee}));
+      fee: this.fee,
+      data: this.data }));
   }
 
   /**
@@ -81,8 +84,16 @@ module.exports = class Transaction {
         utils.verifySignature(this.pubKey, this.id, this.sig);
   }
 
-  sufficientFunds(balances) {
-    return this.totalOutput() <= balances.get(this.from);
+  /**
+   * Verifies that there is currently sufficient gold for the transaction.
+   * 
+   * @param {Block} block - Block used to check current balances
+   * 
+   * @returns {boolean} - True if there are sufficient funds for the transaction,
+   *    according to the balances from the specified block.
+   */
+  sufficientFunds(block) {
+    return this.totalOutput() <= block.balances.get(this.from);
   }
 
   /**

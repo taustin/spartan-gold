@@ -2,75 +2,15 @@
 
 const BigInteger = require('jsbn').BigInteger;
 
-const Transaction = require('./transaction.js');
+const Blockchain = require('./blockchain.js');
 
 const utils = require('./utils.js');
-
-const POW_BASE_TARGET = new BigInteger("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
-const POW_TARGET = POW_BASE_TARGET.shiftRight(15);
-const COINBASE_AMT_ALLOWED = 25;
 
 /**
  * A block is a collection of transactions, with a hash connecting it
  * to a previous block.
  */
 module.exports = class Block {
-
-  /**
-   * Converts a string representation of a block to a new Block instance.
-   * 
-   * @param {Object} o - An object representing a block, but not an instance of Block.
-   * 
-   * @returns {Block}
-   */
-  static deserialize(o) {
-    let b = new Block();
-    b.chainLength = parseInt(o.chainLength);
-    b.timestamp = o.timestamp;
-
-    if (b.isGenesisBlock()) {
-      // Balances need to be recreated and restored in a map.
-      o.balances.forEach(([clientID,amount]) => {
-        b.balances.set(clientID, amount);
-      });
-    } else {
-      b.prevBlockHash = o.prevBlockHash;
-      b.proof = o.proof;
-      b.rewardAddr = o.rewardAddr;
-      // Likewise, transactions need to be recreated and restored in a map.
-      b.transactions = new Map();
-      if (o.transactions) o.transactions.forEach(([txID,txJson]) => {
-        let tx = new Transaction(txJson);
-        b.transactions.set(txID, tx);
-      });
-    }
-
-    return b;
-  }
-
-  /**
-   * Produces a new genesis block, giving the specified clients
-   * the specified amount of starting gold.  This method will also
-   * set the genesis block for every client passed in.
-   * 
-   * @param {Map.<Client, number>} clientBalanceMap - A map of clients to
-   *    their starting amount of gold.
-   * 
-   * @returns {Block} - The genesis block.
-   */
-  static makeGenesis(clientBalanceMap) {
-    let g = new Block();
-
-    for (let [client, balance] of clientBalanceMap.entries()) {
-      g.balances.set(client.address, balance);
-    }
-
-    for (let client of clientBalanceMap.keys()) {
-      client.setGenesisBlock(g);
-    }
-
-    return g;
-  }
 
   /**
    * Creates a new Block.  Note that the previous block will not be stored;
@@ -83,7 +23,7 @@ module.exports = class Block {
    *      produces a smaller value when hashed.
    * @param {Number} [coinbaseReward] - The gold that a miner earns for finding a block proof.
    */
-  constructor(rewardAddr, prevBlock, target=POW_TARGET, coinbaseReward=COINBASE_AMT_ALLOWED) {
+  constructor(rewardAddr, prevBlock, target=Blockchain.POW_TARGET, coinbaseReward=Blockchain.COINBASE_AMT_ALLOWED) {
     this.prevBlockHash = prevBlock ? prevBlock.hashVal() : null;
     this.target = target;
 
@@ -251,7 +191,7 @@ module.exports = class Block {
     } else if (!tx.validSignature()) {
       if (client) client.log(`Invalid signature for transaction ${tx.id}.`);
       return false;
-    } else if (!tx.sufficientFunds(this.balances)) {
+    } else if (!tx.sufficientFunds(this)) {
       if (client) client.log(`Insufficient gold for transaction ${tx.id}.`);
       return false;
     }
@@ -304,7 +244,7 @@ module.exports = class Block {
 
     // Adding coinbase reward for prevBlock.
     let winnerBalance = this.balanceOf(prevBlock.rewardAddr);
-    this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
+    if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
 
     // Re-adding all transactions.
     let txs = this.transactions;

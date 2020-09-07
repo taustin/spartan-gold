@@ -1,17 +1,12 @@
 "use strict";
 
-let Block = require('./block.js');
+let Blockchain = require('./blockchain.js');
 let Client = require('./client.js');
-let Transaction = require('./transaction.js');
-
-const NUM_ROUNDS_MINING = 2000;
 
 /**
  * Miners are clients, but they also mine blocks looking for "proofs".
  */
 module.exports = class Miner extends Client {
-  // Network message types
-  static get START_MINING() { return "START_MINING"; }
 
   /**
    * When a new miner is created, but the PoW search is **not** yet started.
@@ -27,7 +22,7 @@ module.exports = class Miner extends Client {
    *      for messages.  (In single-threaded mode with FakeNet, this parameter can
    *      simulate miners with more or less mining power.)
    */
-  constructor({name, net, startingBlock, miningRounds=NUM_ROUNDS_MINING} = {}) {
+  constructor({name, net, startingBlock, miningRounds=Blockchain.NUM_ROUNDS_MINING} = {}) {
     super({name, net, startingBlock});
     this.miningRounds=miningRounds;
   }
@@ -38,10 +33,10 @@ module.exports = class Miner extends Client {
   initialize() {
     this.startNewSearch();
 
-    this.on(Miner.START_MINING, this.findProof);
-    this.on(Client.POST_TRANSACTION, this.addTransaction);
+    this.on(Blockchain.START_MINING, this.findProof);
+    this.on(Blockchain.POST_TRANSACTION, this.addTransaction);
 
-    this.emit(Miner.START_MINING);
+    this.emit(Blockchain.START_MINING);
   }
 
   /**
@@ -50,7 +45,7 @@ module.exports = class Miner extends Client {
    * @param {Set} [txSet] - Transactions the miner has that have not been accepted yet.
    */
   startNewSearch(txSet=new Set()) {
-    this.currentBlock = new Block(this.address, this.lastBlock);
+    this.currentBlock = Blockchain.makeBlock(this.address, this.lastBlock);
 
     txSet.forEach((tx) => this.addTransaction(tx));
 
@@ -82,7 +77,7 @@ module.exports = class Miner extends Client {
     // If we are testing, don't continue the search.
     if (!oneAndDone) {
       // Check if anyone has found a block, and then return to mining.
-      setTimeout(() => this.emit(Miner.START_MINING), 0);
+      setTimeout(() => this.emit(Blockchain.START_MINING), 0);
     }
   }
 
@@ -90,7 +85,7 @@ module.exports = class Miner extends Client {
    * Broadcast the block, with a valid proof included.
    */
   announceProof() {
-    this.net.broadcast(Client.PROOF_FOUND, this.currentBlock);
+    this.net.broadcast(Blockchain.PROOF_FOUND, this.currentBlock);
   }
 
   /**
@@ -114,10 +109,11 @@ module.exports = class Miner extends Client {
   }
 
   /**
-   * This function should determine what transactions need to be added or deleted.
-   * It should find a common ancestor (retrieving any transactions from the
-   * rolled-back blocks), remove any transactions already included in the newly
-   * accepted blocks, and add any remaining transactions to the new block.
+   * This function should determine what transactions
+   * need to be added or deleted.  It should find a common ancestor (retrieving
+   * any transactions from the rolled-back blocks), remove any transactions
+   * already included in the newly accepted blocks, and add any remanining
+   * transactions to the new block.
    * 
    * @param {Block} nb - The newly accepted block.
    * 
@@ -158,10 +154,18 @@ module.exports = class Miner extends Client {
    * @param {Transaction | String} tx - The transaction to add.
    */
   addTransaction(tx) {
-    if (!(tx instanceof Transaction)){
-      tx = new Transaction(tx);
-    }
-    return this.currentBlock.addTransaction(tx);
+    tx = Blockchain.makeTransaction(tx);
+    return this.currentBlock.addTransaction(tx, this);
+  }
+
+  /**
+   * When a miner posts a transaction, it must also add it to its current list of transactions.
+   *
+   * @param  {...any} args - Arguments needed for Client.postTransaction.
+   */
+  postTransaction(...args) {
+    let tx = super.postTransaction(...args);
+    return this.addTransaction(tx);
   }
 
 };

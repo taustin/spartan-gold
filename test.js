@@ -6,6 +6,7 @@ const BigInteger = require('jsbn').BigInteger;
 const utils = require('./utils.js');
 
 const Block = require('./block.js');
+const Blockchain = require('./blockchain.js');
 const Client = require('./client.js');
 const Miner = require('./miner.js');
 const Transaction = require('./transaction.js');
@@ -16,6 +17,12 @@ let addr = utils.calcAddress(kp.public);
 
 // Adding a POW target that should be trivial to match.
 const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+
+// Setting blockchain configuration.  (Usually this would be done during the creation of the genesis block.)
+Blockchain.cfg = {
+  Block: Block,
+  Transaction: Transaction,
+};
 
 describe('utils', () => {
   describe('.verifySignature', () => {
@@ -123,7 +130,7 @@ describe('Block', () => {
 
       let serialBlock = b.serialize();
       let o = JSON.parse(serialBlock);
-      let b2 = Block.deserialize(o);
+      let b2 = Blockchain.deserializeBlock(o);
       b2.rerun(prevBlock);
 
       // Verify hashes still match

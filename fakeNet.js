@@ -41,14 +41,13 @@ module.exports = class FakeNet {
    * @param {Object} o - payload of the message
    */
   sendMessage(address, msg, o) {
-    //if (typeof o === 'string') o = JSON.parse(o);
     if (typeof o !== 'object') throw new Error(`Expecting an object, but got a ${typeof o}`);
 
     // Serializing/deserializing the object to prevent cheating in single threaded mode.
     let o2 = JSON.parse(JSON.stringify(o));
 
     const client = this.clients.get(address);
-    setTimeout(() => client.emit(msg, o2, 0));
+    setTimeout(() => client.emit(msg, o2), 0);
   }
 
   /**
