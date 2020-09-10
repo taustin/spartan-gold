@@ -111,9 +111,9 @@ let name = `Miner${port}`;
 
 let knownMiners = process.argv.slice(3);
 
-let emptyGenesis = Blockchain.makeGenesis(new Map([]), {
-  Block: Block,
-  Transaction: Transaction
+let emptyGenesis = Blockchain.makeGenesis({
+  blockClass: Block,
+  transactionClass: Transaction
 });
 
 console.log(`Starting ${name}`);

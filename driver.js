@@ -23,15 +23,16 @@ let minnie = new Miner({name: "Minnie", net: fakeNet});
 let mickey = new Miner({name: "Mickey", net: fakeNet});
 
 // Creating genesis block
-let genesis = Blockchain.makeGenesis(new Map([
-  [alice, 233],
-  [bob, 99],
-  [charlie, 67],
-  [minnie, 400],
-  [mickey, 300],
-]), {
-  Block: Block,
-  Transaction: Transaction,
+let genesis = Blockchain.makeGenesis({
+  blockClass: Block,
+  transactionClass: Transaction,
+  clientBalanceMap: new Map([
+    [alice, 233],
+    [bob, 99],
+    [charlie, 67],
+    [minnie, 400],
+    [mickey, 300],
+  ]),
 });
 
 // Late miner - Donald has more mining power, represented by the miningRounds.
