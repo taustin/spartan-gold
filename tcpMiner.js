@@ -6,6 +6,7 @@ const Blockchain = require('./blockchain.js');
 const Block = require('./block.js');
 const Miner = require('./miner.js');
 const Transaction = require('./transaction.js');
+const { readFileSync, writeFileSync } = require('fs');
 
 /**
  * This extends the FakeNet class to actually communicate over the network.
@@ -34,8 +35,8 @@ class TcpMiner extends Miner {
    * also takes a JSON object for the connection information and sets
    * up a listener to listen for incoming connections.
    */
-  constructor({name, startingBlock, miningRounds, connection} = {}) {
-    super({name, net: new TcpNet(), startingBlock, miningRounds});
+  constructor({name, startingBlock, miningRounds, keyPair, connection} = {}) {
+    super({name, net: new TcpNet(), startingBlock, keyPair, miningRounds});
 
     // Setting up the server to listen for connections
     this.connection = connection;
@@ -80,7 +81,8 @@ class TcpMiner extends Miner {
   /**
    * Begins mining and registers with any known miners.
    */
-  initialize(...knownMinerConnections) {
+  initialize(knownMinerConnections) {
+    this.knownMiners = knownMinerConnections;
     super.initialize();
     this.srvr.listen(this.connection.port);
     for (let m of knownMinerConnections) {
@@ -99,17 +101,26 @@ class TcpMiner extends Miner {
     return s;
   }
 
+  saveJson(fileName) {
+    let state = {
+      name: this.name,
+      connection: this.connection,
+      keyPair: this.keyPair,
+      knownMiners: this.knownMiners,
+    };
+    writeFileSync(fileName, JSON.stringify(state));
+  }
+
 }
 
-if (process.argv.length < 3) {
-  console.error(`Usage: ${process.argv[0]} ${process.argv[1]} <port> [<known miner port> ...]`);
+if (process.argv.length !== 3) {
+  console.error(`Usage: ${process.argv[0]} ${process.argv[1]} <config.json>`);
   process.exit();
 }
-let port = process.argv[2];
-let conn = {port: port};
-let name = `Miner${port}`;
+let config = JSON.parse(readFileSync(process.argv[2]));
+let name = config.name;
 
-let knownMiners = process.argv.slice(3);
+let knownMiners = config.knownMiners || [];
 
 let emptyGenesis = Blockchain.makeGenesis({
   blockClass: Block,
@@ -117,13 +128,13 @@ let emptyGenesis = Blockchain.makeGenesis({
 });
 
 console.log(`Starting ${name}`);
-let minnie = new TcpMiner({name: name, connection: conn, startingBlock: emptyGenesis});
+let minnie = new TcpMiner({name: name, keyPair: config.keyPair, connection: config.connection, startingBlock: emptyGenesis});
 
 // Silencing the logging messages
 minnie.log = function(){};
 
 // Register with known miners and begin mining.
-minnie.initialize(...knownMiners);
+minnie.initialize(knownMiners);
 
 let rl = readline.createInterface({
   input: process.stdin,
@@ -142,7 +153,8 @@ function readUserInput() {
   *(r)esend pending transactions?
   *show (b)alances?
   *show blocks for (d)ebugging and exit?
-  *e(x)it?
+  *(s)ave your state?
+  *e(x)it without saving?
   
   Your choice: `, (answer) => {
     console.clear();
@@ -167,6 +179,7 @@ function readUserInput() {
           amt = parseInt(amt);
           if (amt > minnie.availableGold) {
             console.log(`***Insufficient gold.  You only have ${minnie.availableGold}.`);
+            readUserInput();
           } else {
             rl.question(`  address: `, (addr) => {
               let output = {amount: amt, address: addr};
@@ -179,6 +192,12 @@ function readUserInput() {
         break;
       case 'r':
         minnie.resendPendingTransactions();
+        break;
+      case 's':
+        rl.question(`  file name: `, (fname) => {
+          minnie.saveJson(fname);
+          readUserInput();
+        });
         break;
       case 'd':
         minnie.blocks.forEach((block) => {
@@ -198,5 +217,6 @@ function readUserInput() {
   });
 }
 
+console.clear();
 readUserInput();
 

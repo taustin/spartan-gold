@@ -23,14 +23,20 @@ module.exports = class Client extends EventEmitter {
    * @param {Object} obj.net - The network used by the client
    *    to send messages to all miners and clients.
    * @param {Block} [obj.startingBlock] - The starting point of the blockchain for the client.
+   * @param {Object} [obj.keyPair] - The public private keypair for the client.
    */
-  constructor({name, net, startingBlock} = {}) {
+  constructor({name, net, startingBlock, keyPair} = {}) {
     super();
 
     this.net = net;
     this.name = name;
 
-    this.keyPair = utils.generateKeypair();
+    if (keyPair === undefined) {
+      this.keyPair = utils.generateKeypair();
+    } else {
+      this.keyPair = keyPair;
+    }
+
     this.address = utils.calcAddress(this.keyPair.public);
 
     // Establishes order of transactions.  Incremented with each
