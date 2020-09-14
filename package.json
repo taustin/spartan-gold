@@ -1,11 +1,10 @@
 {
   "name": "spartan-gold",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A simplified blockchain-based cryptocurrency for experimentation",
   "main": "index.js",
   "scripts": {
     "lint": "eslint **/*.js",
-    "preinstall": "npx npm-force-resolutions",
     "test": "mocha"
   },
   "repository": {
