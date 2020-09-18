@@ -36,21 +36,21 @@ Note that the use of `miningRounds` as a way to specify mining power only works 
 
 ### Multi-process Mode
 
-In this mode, each SpartanGold miner runs in its own JavaScript process.  All miners run on `localhost` and specify a port at the command line.
+In this mode, each SpartanGold miner runs in its own JavaScript process.  You must specify a configuration file in JSON format.  If you look in the `sampleConfigs/` directory, you will see some JSON files that you can use to get started.
 
-To start a miner on localhost, port 9000:
+Here is a sample:
 
 ``
-$ node tcpMiner.js 9000
+$ node tcpMiner.js sampleConfigs/minnie.json
 ``
 
-This presents a text-based menu, including information about the miner's address, its current funds, and any outstanding transactions that it has.  Here is an example:
+This command will start a miner listening on localhost, port 9000.  It then presents a text-based menu, including information about the miner's address, its current funds, and any outstanding transactions that it has.  Here is an example:
 
 ``` fundamental
-Starting Miner9000
+Starting Minnie
 
-  Funds: 0
-  Address: 6w6/Z2hWMxJPBDsUM83hM1P2x/hhAtX0i4CZ92os+Kg=
+  Funds: 501
+  Address: hDDXlpBFlnKViXVhbpJbf+tua7F8yMPIYtjJ+8KbWbk=
   Pending transactions: 
   
   What would you like to do?
@@ -59,15 +59,16 @@ Starting Miner9000
   *(r)esend pending transactions?
   *show (b)alances?
   *show blocks for (d)ebugging and exit?
-  *e(x)it?
+  *(s)ave your state?
+  *e(x)it without saving?
   
-  Your choice:
+  Your choice: 
 ```
 
-In a separate process, you can start an additional miner on another port.  The miner will register with miners at any additional ports listed.  For instance, to start a miner on port 9001 that will connect with the miner on port 9000, run:
+In a separate process, you can start an additional miner on another port.  The miner will register with miners at any additional ports listed.  For example:
 
 ``
-$ node tcpMiner.js 9001 9000
+$ node tcpMiner.js sampleConfigs/mickey.json
 ``
 
 The two miners will now race to find proofs, sending their blocks back and forth.
