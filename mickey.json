@@ -1,1 +1,26 @@
-{"name":"Mickey","connection":{"hostname":"localhost","port":9001},"keyPair":{"public":"-----BEGIN PUBLIC KEY-----\nMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL4A+gZkw3ZndE2SLDH/FaNUFxDIHu/s\nxMk4wxTGrxDS6sVi6TiHBc1/XlFMhx2yxTCRiFeVmjoIzmZh5gE9v8MCAwEAAQ==\n-----END PUBLIC KEY-----\n","private":"-----BEGIN PRIVATE KEY-----\nMIIBVgIBADANBgkqhkiG9w0BAQEFAASCAUAwggE8AgEAAkEAvgD6BmTDdmd0TZIs\nMf8Vo1QXEMge7+zEyTjDFMavENLqxWLpOIcFzX9eUUyHHbLFMJGIV5WaOgjOZmHm\nAT2/wwIDAQABAkEAllTVfeuJz4wJNDrcJu6poyGsYkXEXJacGI2FpFGTQB4UJXX+\nYEAKsi2X9NQkB9DsL/ihpYvJWgAs6oXOmwOWsQIhAOM183TfxN4/lZaOP8/nsDpG\nbl9Zwrb/1NIBjG9lLjQZAiEA1hQkYz+hvPuCTKenUc84m6qeTS8bqPTjs0XhSC19\nbjsCIAmrURoHL9SZdh87HIIXhQtl1eqe4kdxabgqMrTG5Il5AiEA0aSJ+dOPnRUk\nBdNMzJXEltTgDy/pw2yGK8JsGpXJto8CIQC1kmvK0vRAgBBR3nSq6m2Q1G5weMb0\nshNjQZYX5cHVeQ==\n-----END PRIVATE KEY-----\n"},"knownMiners":[{"hostname":"localhost","port":9000}]}
+{
+  "name": "Mickey",
+  "genesis": {
+    "startingBalances": {
+      "hDDXlpBFlnKViXVhbpJbf+tua7F8yMPIYtjJ+8KbWbk=": 501,
+      "6NMB4xXkGniLmeGBemXUZ7QOEDeo3uXP15fuGpcUq0A=": 402
+    },
+    "startingStake": {
+      "hDDXlpBFlnKViXVhbpJbf+tua7F8yMPIYtjJ+8KbWbk=": 120,
+      "6NMB4xXkGniLmeGBemXUZ7QOEDeo3uXP15fuGpcUq0A=": 80
+    }
+  },
+  "connection": {
+    "hostname": "localhost",
+    "port": 9001
+  },
+  "keyPair": {
+    "public": "-----BEGIN PUBLIC KEY-----\nMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL4A+gZkw3ZndE2SLDH/FaNUFxDIHu/s\nxMk4wxTGrxDS6sVi6TiHBc1/XlFMhx2yxTCRiFeVmjoIzmZh5gE9v8MCAwEAAQ==\n-----END PUBLIC KEY-----\n",
+    "private": "-----BEGIN PRIVATE KEY-----\nMIIBVgIBADANBgkqhkiG9w0BAQEFAASCAUAwggE8AgEAAkEAvgD6BmTDdmd0TZIs\nMf8Vo1QXEMge7+zEyTjDFMavENLqxWLpOIcFzX9eUUyHHbLFMJGIV5WaOgjOZmHm\nAT2/wwIDAQABAkEAllTVfeuJz4wJNDrcJu6poyGsYkXEXJacGI2FpFGTQB4UJXX+\nYEAKsi2X9NQkB9DsL/ihpYvJWgAs6oXOmwOWsQIhAOM183TfxN4/lZaOP8/nsDpG\nbl9Zwrb/1NIBjG9lLjQZAiEA1hQkYz+hvPuCTKenUc84m6qeTS8bqPTjs0XhSC19\nbjsCIAmrURoHL9SZdh87HIIXhQtl1eqe4kdxabgqMrTG5Il5AiEA0aSJ+dOPnRUk\nBdNMzJXEltTgDy/pw2yGK8JsGpXJto8CIQC1kmvK0vRAgBBR3nSq6m2Q1G5weMb0\nshNjQZYX5cHVeQ==\n-----END PRIVATE KEY-----\n"
+  },
+  "knownMiners": [
+    { "hostname": "localhost",
+      "port": 9000
+    }
+  ]
+}

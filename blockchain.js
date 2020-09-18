@@ -45,13 +45,18 @@ module.exports = class Blockchain {
 
   /**
    * Produces a new genesis block, giving the specified clients
-   * the specified amount of starting gold.  This method will also
-   * set the genesis block for every client passed in.
+   * the specified amount of starting gold.  Either clientBalanceMap
+   * OR startingBalances can be specified, but not both.
+   * 
+   * If clientBalanceMap is specified, then this method will also
+   * set the genesis block for every client passed in.  This option
+   * is useful in single-threaded mode.
    * 
    * @param {Object} cfg - Settings for the blockchain.
    * @param {Class} cfg.blockClass - Implementation of the Block class.
    * @param {Class} cfg.transactionClass - Implementation of the Transaction class.
    * @param {Map} [cfg.clientBalanceMap] - Mapping of clients to their starting balances.
+   * @param {Object} [cfg.startingBalances] - Mapping of client addresses to their starting balances.
    * @param {number} [cfg.powLeadingZeroes] - Number of leading zeroes required for a valid proof-of-work.
    * @param {number} [cfg.coinbaseAmount] - Amount of gold awarded to a miner for creating a block.
    * @param {number} [cfg.defaultTxFee] - Amount of gold awarded to a miner for accepting a transaction,
@@ -68,21 +73,40 @@ module.exports = class Blockchain {
     coinbaseAmount = COINBASE_AMT_ALLOWED,
     defaultTxFee = DEFAULT_TX_FEE,
     confirmedDepth = CONFIRMED_DEPTH,
-    clientBalanceMap = [],
+    clientBalanceMap,
+    startingBalances,
   }) {
+
+    if (clientBalanceMap && startingBalances) {
+      throw new Error("You may set clientBalanceMap OR set startingBalances, but not both.");
+    }
 
     // Setting blockchain configuration
     Blockchain.cfg = { blockClass, transactionClass, coinbaseAmount, defaultTxFee, confirmedDepth };
     Blockchain.cfg.powTarget = POW_BASE_TARGET.shiftRight(powLeadingZeroes);
+    
+    // If startingBalances was specified, we initialize our balances to that object.
+    let balances = startingBalances || {};
+
+    // If clientBalanceMap was initialized instead, we copy over those values.
+    if (clientBalanceMap !== undefined) {
+      for (let [client, balance] of clientBalanceMap.entries()) {
+        balances[client.address] = balance;
+      }
+    }
 
     let g = this.makeBlock();
 
-    for (let [client, balance] of clientBalanceMap.entries()) {
-      g.balances.set(client.address, balance);
-    }
+    // Initializing starting balances in the genesis block.
+    Object.keys(balances).forEach((addr) => {
+      g.balances.set(addr, balances[addr]);
+    });
 
-    for (let client of clientBalanceMap.keys()) {
-      client.setGenesisBlock(g);
+    // If clientBalanceMap was specified, we set the genesis block for every client.
+    if (clientBalanceMap) {
+      for (let client of clientBalanceMap.keys()) {
+        client.setGenesisBlock(g);
+      }
     }
 
     return g;

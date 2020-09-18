@@ -1,12 +1,12 @@
 const net = require('net');
 const readline = require('readline');
+const { readFileSync, writeFileSync } = require('fs');
 
 const FakeNet = require('./fakeNet.js');
 const Blockchain = require('./blockchain.js');
 const Block = require('./block.js');
 const Miner = require('./miner.js');
 const Transaction = require('./transaction.js');
-const { readFileSync, writeFileSync } = require('fs');
 
 /**
  * This extends the FakeNet class to actually communicate over the network.
@@ -122,13 +122,18 @@ let name = config.name;
 
 let knownMiners = config.knownMiners || [];
 
-let emptyGenesis = Blockchain.makeGenesis({
+// Clearing the screen so things look a little nicer.
+console.clear();
+
+let startingBalances = config.genesis ? config.genesis.startingBalances : {};
+let genesis = Blockchain.makeGenesis({
   blockClass: Block,
-  transactionClass: Transaction
+  transactionClass: Transaction,
+  startingBalances: startingBalances
 });
 
 console.log(`Starting ${name}`);
-let minnie = new TcpMiner({name: name, keyPair: config.keyPair, connection: config.connection, startingBlock: emptyGenesis});
+let minnie = new TcpMiner({name: name, keyPair: config.keyPair, connection: config.connection, startingBlock: genesis});
 
 // Silencing the logging messages
 minnie.log = function(){};
@@ -217,6 +222,5 @@ function readUserInput() {
   });
 }
 
-console.clear();
 readUserInput();
 
