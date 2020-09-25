@@ -181,7 +181,7 @@ function readUserInput() {
         break;
       case 't':
         rl.question(`  amount: `, (amt) => {
-          amt = parseInt(amt);
+          amt = parseInt(amt, 10);
           if (amt > minnie.availableGold) {
             console.log(`***Insufficient gold.  You only have ${minnie.availableGold}.`);
             readUserInput();

@@ -14,6 +14,7 @@
   "rules": {
     "no-console": 0,
     "semi": "error",
-    "no-debugger": "error"
+    "no-debugger": "error",
+    "radix": "error"
   }
 }

@@ -28,9 +28,9 @@ module.exports = class Transaction {
    *          transactions, this should be the block height.
    * @param obj.pubKey - Public key associated with the specified from address.
    * @param obj.sig - Signature of the transaction.  This field may be ommitted.
-   * @param {Array} obj.outputs - An array of the outputs.
-   * @param obj.fee - The amount of gold offered as a transaction fee.
-   * @param obj.data - Object with any additional properties desired for the transaction.
+   * @param {Array} [obj.outputs] - An array of the outputs.
+   * @param [obj.fee] - The amount of gold offered as a transaction fee.
+   * @param [obj.data] - Object with any additional properties desired for the transaction.
    */
   constructor({from, nonce, pubKey, sig, outputs, fee=0, data={}}) {
     this.from = from;
@@ -41,7 +41,7 @@ module.exports = class Transaction {
     this.outputs = [];
     if (outputs) outputs.forEach(({amount, address}) => {
       if (typeof amount !== 'number') {
-        amount = parseInt(amount);
+        amount = parseInt(amount, 10);
       }
       this.outputs.push({amount, address});
     });

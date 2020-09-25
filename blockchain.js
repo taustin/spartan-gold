@@ -43,6 +43,7 @@ module.exports = class Blockchain {
   static get DEFAULT_TX_FEE() { return Blockchain.cfg.defaultTxFee; }
   static get CONFIRMED_DEPTH() { return Blockchain.cfg.confirmedDepth; }
 
+
   /**
    * Produces a new genesis block, giving the specified clients
    * the specified amount of starting gold.  Either clientBalanceMap
@@ -125,7 +126,7 @@ module.exports = class Blockchain {
     }
 
     let b = new Blockchain.cfg.blockClass();
-    b.chainLength = parseInt(o.chainLength);
+    b.chainLength = parseInt(o.chainLength, 10);
     b.timestamp = o.timestamp;
 
     if (b.isGenesisBlock()) {

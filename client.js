@@ -266,7 +266,6 @@ module.exports = class Client extends EventEmitter {
     if (this.blocks.has(msg.missing)) {
       this.log(`Providing missing block ${msg.missing}`);
       let block = this.blocks.get(msg.missing);
-      //this.net.sendMessage(msg.from, Client.PROOF_FOUND, block.serialize());
       this.net.sendMessage(msg.from, Blockchain.PROOF_FOUND, block);
     }
   }
