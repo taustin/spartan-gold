@@ -37,7 +37,7 @@ module.exports = class Miner extends Client {
     this.on(Blockchain.START_MINING, this.findProof);
     this.on(Blockchain.POST_TRANSACTION, this.addTransaction);
 
-    this.emit(Blockchain.START_MINING);
+    setTimeout(() => this.emit(Blockchain.START_MINING), 0);
   }
 
   /**

@@ -131,7 +131,7 @@ module.exports = class Client extends EventEmitter {
 
     // Make sure the client has enough gold.
     if (totalPayments > this.availableGold) {
-      throw new Error(`Requested ${totalPayments}, but account only has ${this.balance}.`);
+      throw new Error(`Requested ${totalPayments}, but account only has ${this.availableGold}.`);
     }
 
     // Broadcasting the new transaction.

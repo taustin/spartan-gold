@@ -73,8 +73,7 @@ module.exports = class Transaction {
 
   /**
    * Determines whether the signature of the transaction is valid
-   * and if the from address matches the public key. This method
-   * is not relevant for coinbase transactions.
+   * and if the from address matches the public key.
    * 
    * @returns {Boolean} - Validity of the signature and from address.
    */
