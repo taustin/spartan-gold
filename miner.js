@@ -113,7 +113,7 @@ module.exports = class Miner extends Client {
    * This function should determine what transactions
    * need to be added or deleted.  It should find a common ancestor (retrieving
    * any transactions from the rolled-back blocks), remove any transactions
-   * already included in the newly accepted blocks, and add any remanining
+   * already included in the newly accepted blocks, and add any remaining
    * transactions to the new block.
    * 
    * @param {Block} nb - The newly accepted block.

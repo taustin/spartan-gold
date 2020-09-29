@@ -59,7 +59,7 @@ minnie.initialize();
 mickey.initialize();
 
 // Alice transfers some money to Bob.
-console.log(`Alice is transfering 40 gold to ${bob.address}`);
+console.log(`Alice is transferring 40 gold to ${bob.address}`);
 alice.postTransaction([{ amount: 40, address: bob.address }]);
 
 setTimeout(() => {
