@@ -255,7 +255,7 @@ module.exports = class Client extends EventEmitter {
   }
 
   /**
-   * Takes an object representing a request for a misssing block.
+   * Takes an object representing a request for a missing block.
    * If the client has the block, it will send the block to the
    * client that requested it.
    * 
@@ -295,7 +295,7 @@ module.exports = class Client extends EventEmitter {
   }
 
   /**
-   * Utility method that displays all confimed balances for all clients,
+   * Utility method that displays all confirmed balances for all clients,
    * according to the client's own perspective of the network.
    */
   showAllBalances() {

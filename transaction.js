@@ -27,7 +27,7 @@ module.exports = class Transaction {
    * @param obj.nonce - Number that orders the payer's transactions.  For coinbase
    *          transactions, this should be the block height.
    * @param obj.pubKey - Public key associated with the specified from address.
-   * @param obj.sig - Signature of the transaction.  This field may be ommitted.
+   * @param obj.sig - Signature of the transaction.  This field may be omitted.
    * @param {Array} [obj.outputs] - An array of the outputs.
    * @param [obj.fee] - The amount of gold offered as a transaction fee.
    * @param [obj.data] - Object with any additional properties desired for the transaction.

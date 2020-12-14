@@ -20,7 +20,6 @@ class TcpNet extends FakeNet {
       clientConnection.write(JSON.stringify(data));
     });
   }
-
 }
 
 /**
