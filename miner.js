@@ -48,6 +48,8 @@ module.exports = class Miner extends Client {
   startNewSearch(txSet=new Set()) {
     this.currentBlock = Blockchain.makeBlock(this.address, this.lastBlock);
 
+    // These transactions may include transactions not already included
+    // by a recently received block, but that the miner is aware of.
     txSet.forEach((tx) => this.addTransaction(tx));
 
     // Start looking for a proof at 0.
@@ -107,6 +109,8 @@ module.exports = class Miner extends Client {
       let txSet = this.syncTransactions(b);
       this.startNewSearch(txSet);
     }
+
+    return b;
   }
 
   /**
