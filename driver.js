@@ -6,7 +6,7 @@ let Client = require('./client.js');
 let Miner = require('./miner.js');
 let Transaction = require('./transaction.js');
 
-let FakeNet = require('./fakeNet.js');
+let FakeNet = require('./fake-net.js');
 
 console.log("Starting simulation.  This may take a moment...");
 

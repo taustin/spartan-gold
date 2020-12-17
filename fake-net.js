@@ -5,8 +5,24 @@
  */
 module.exports = class FakeNet {
 
-  constructor() {
+  /**
+   * Specifies a chance of a message failing to be sent and
+   * the maximum delay of a message (in milliseconds) if it
+   * is sent.
+   * 
+   * This version is designed to simulate more realistic network
+   * conditions for testing.
+   * 
+   * The messageDelay parameter is the maximum -- a message may
+   * be delayed any amount of time between 0 ms and the delay specified.
+   * 
+   * @param {number} [chanceMessageFails] - Should be in the range of 0 to 1.
+   * @param {number} [messageDelay] - Time that a message may be delayed.
+   */
+  constructor(chanceMessageFails=0, messageDelay=0) {
     this.clients = new Map();
+    this.chanceMessageFails = chanceMessageFails;
+    this.messageDelayMax = messageDelay;
   }
 
   /**
@@ -36,6 +52,9 @@ module.exports = class FakeNet {
   /**
    * Sends message msg and payload o directly to Client name.
    *
+   * The message may be lost or delayed, with the probability
+   * defined for this instance.
+   *
    * @param {String} address - the public key address of the client or miner to which to send the message
    * @param {String} msg - the name of the event being broadcasted (e.g. "PROOF_FOUND")
    * @param {Object} o - payload of the message
@@ -47,7 +66,12 @@ module.exports = class FakeNet {
     let o2 = JSON.parse(JSON.stringify(o));
 
     const client = this.clients.get(address);
-    setTimeout(() => client.emit(msg, o2), 0);
+
+    let delay = Math.floor(Math.random() * this.messageDelayMax);
+
+    if (Math.random() > this.chanceMessageFails) {
+      setTimeout(() => client.emit(msg, o2), delay);
+    }
   }
 
   /**

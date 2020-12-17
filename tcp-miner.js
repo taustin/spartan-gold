@@ -2,7 +2,7 @@ const net = require('net');
 const readline = require('readline');
 const { readFileSync, writeFileSync } = require('fs');
 
-const FakeNet = require('./fakeNet.js');
+const FakeNet = require('./fake-net.js');
 const Blockchain = require('./blockchain.js');
 const Block = require('./block.js');
 const Miner = require('./miner.js');
