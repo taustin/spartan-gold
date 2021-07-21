@@ -26,6 +26,9 @@ module.exports = class Miner extends Client {
   constructor({name, net, startingBlock, keyPair, miningRounds=Blockchain.NUM_ROUNDS_MINING} = {}) {
     super({name, net, startingBlock, keyPair});
     this.miningRounds=miningRounds;
+
+    // Set of transactions to be added to the next block.
+    this.transactions = new Set();
   }
 
   /**
@@ -48,9 +51,16 @@ module.exports = class Miner extends Client {
   startNewSearch(txSet=new Set()) {
     this.currentBlock = Blockchain.makeBlock(this.address, this.lastBlock);
 
+    // Merging txSet into the transaction queue.
     // These transactions may include transactions not already included
     // by a recently received block, but that the miner is aware of.
-    txSet.forEach((tx) => this.addTransaction(tx));
+    txSet.forEach((tx) => this.transactions.add(tx));
+
+    // Add queued-up transactions to block.
+    this.transactions.forEach((tx) => {
+      this.currentBlock.addTransaction(tx, this);
+    });
+    this.transactions.clear();
 
     // Start looking for a proof at 0.
     this.currentBlock.proof = 0;
@@ -153,14 +163,14 @@ module.exports = class Miner extends Client {
   }
 
   /**
-   * Returns false if transaction is not accepted. Otherwise adds
-   * the transaction to the current block.
+   * Returns false if transaction is not accepted. Otherwise stores
+   * the transaction to be added to the next block.
    * 
    * @param {Transaction | String} tx - The transaction to add.
    */
   addTransaction(tx) {
     tx = Blockchain.makeTransaction(tx);
-    return this.currentBlock.addTransaction(tx, this);
+    this.transactions.add(tx);
   }
 
   /**
