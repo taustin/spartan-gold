@@ -134,14 +134,30 @@ module.exports = class Client extends EventEmitter {
       throw new Error(`Requested ${totalPayments}, but account only has ${this.availableGold}.`);
     }
 
-    // Broadcasting the new transaction.
-    let tx = Blockchain.makeTransaction({
+    // Create and broadcast the transaction.
+    return this.postGenericTransaction({
       from: this.address,
       nonce: this.nonce,
       pubKey: this.keyPair.public,
       outputs: outputs,
       fee: fee,
     });
+  }
+
+  /**
+   * Broadcasts a transaction from the client.  No validation is performed,
+   * so the transaction might be rejected by other miners.
+   * 
+   * This method is useful for handling special transactions with unique
+   * parameters required, but generally should not be called directly by clients.
+   * 
+   * @param {Object} txData - The key-value pairs of the transaction.
+   * 
+   * @returns {Transaction} - The posted transaction.
+   */
+  postGenericTransaction(txData) {
+    // Broadcasting the new transaction.
+    let tx = Blockchain.makeTransaction(txData);
 
     tx.sign(this.keyPair.private);
 
