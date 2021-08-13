@@ -1,6 +1,6 @@
 {
   "name": "spartan-gold",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A simplified blockchain-based cryptocurrency for experimentation",
   "main": "index.js",
   "scripts": {
