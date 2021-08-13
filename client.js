@@ -136,9 +136,6 @@ module.exports = class Client extends EventEmitter {
 
     // Create and broadcast the transaction.
     return this.postGenericTransaction({
-      from: this.address,
-      nonce: this.nonce,
-      pubKey: this.keyPair.public,
       outputs: outputs,
       fee: fee,
     });
@@ -156,8 +153,15 @@ module.exports = class Client extends EventEmitter {
    * @returns {Transaction} - The posted transaction.
    */
   postGenericTransaction(txData) {
-    // Broadcasting the new transaction.
-    let tx = Blockchain.makeTransaction(txData);
+    // Creating a transaction, with defaults for the
+    // from, nonce, and pubKey fields.
+    let tx = Blockchain.makeTransaction(
+      Object.assign({
+          from: this.address,
+          nonce: this.nonce,
+          pubKey: this.keyPair.public,
+        },
+        txData));
 
     tx.sign(this.keyPair.private);
 
