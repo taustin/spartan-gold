@@ -81,8 +81,8 @@ module.exports = class Miner extends Client {
       if (this.currentBlock.hasValidProof()) {
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
         this.announceProof();
+        // Note: calling receiveBlock triggers a new search.
         this.receiveBlock(this.currentBlock);
-        this.startNewSearch();
         break;
       }
       this.currentBlock.proof++;
