@@ -1,7 +1,6 @@
 "use strict";
 
 const assert = require('chai').assert;
-const BigInteger = require('jsbn').BigInteger;
 
 const utils = require('./utils.js');
 
@@ -16,7 +15,7 @@ const kp = utils.generateKeypair();
 let addr = utils.calcAddress(kp.public);
 
 // Adding a POW target that should be trivial to match.
-const EASY_POW_TARGET = new BigInteger("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16);
+const EASY_POW_TARGET = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 // Setting blockchain configuration.  (Usually this would be done during the creation of the genesis block.)
 Blockchain.makeGenesis({ blockClass: Block, transactionClass: Transaction });
