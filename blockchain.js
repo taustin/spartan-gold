@@ -11,7 +11,7 @@ const NUM_ROUNDS_MINING = 2000;
 
 // Constants related to proof-of-work target
 const POW_BASE_TARGET = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-const POW_LEADING_ZEROES = 15n;
+const POW_LEADING_ZEROES = 15;
 
 // Constants for mining rewards and default transaction fees
 const COINBASE_AMT_ALLOWED = 25;
@@ -56,7 +56,7 @@ module.exports = class Blockchain {
    * @param {Class} cfg.transactionClass - Implementation of the Transaction class.
    * @param {Map} [cfg.clientBalanceMap] - Mapping of clients to their starting balances.
    * @param {Object} [cfg.startingBalances] - Mapping of client addresses to their starting balances.
-   * @param {BigInt} [cfg.powLeadingZeroes] - Number of leading zeroes required for a valid proof-of-work.
+   * @param {number} [cfg.powLeadingZeroes] - Number of leading zeroes required for a valid proof-of-work.
    * @param {number} [cfg.coinbaseAmount] - Amount of gold awarded to a miner for creating a block.
    * @param {number} [cfg.defaultTxFee] - Amount of gold awarded to a miner for accepting a transaction,
    *    if not overridden by the client.
@@ -82,7 +82,7 @@ module.exports = class Blockchain {
 
     // Setting blockchain configuration
     Blockchain.cfg = { blockClass, transactionClass, coinbaseAmount, defaultTxFee, confirmedDepth };
-    Blockchain.cfg.powTarget = POW_BASE_TARGET >> powLeadingZeroes;
+    Blockchain.cfg.powTarget = POW_BASE_TARGET >> BigInt(powLeadingZeroes);
 
     // If startingBalances was specified, we initialize our balances to that object.
     let balances = startingBalances || {};
