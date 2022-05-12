@@ -1,15 +1,12 @@
 {
   "env": {
     "commonjs": true,
-    "es6": true,
+    "es2020": true,
     "mocha": true,
     "node": true
   },
   "extends": "eslint:recommended",
   "globals": {
-  },
-  "parserOptions": {
-    "ecmaVersion": 2018
   },
   "rules": {
     "no-console": 0,
