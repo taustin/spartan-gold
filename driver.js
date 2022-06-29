@@ -8,8 +8,9 @@ let Transaction = require('./transaction.js');
 
 let FakeNet = require('./fake-net.js');
 
-console.log("Starting simulation.  This may take a moment...");
+const LOTTO_REWARD = 10;
 
+console.log("Starting simulation.  This may take a moment...");
 
 let fakeNet = new FakeNet();
 
@@ -17,6 +18,7 @@ let fakeNet = new FakeNet();
 let alice = new Client({name: "Alice", net: fakeNet});
 let bob = new Client({name: "Bob", net: fakeNet});
 let charlie = new Client({name: "Charlie", net: fakeNet});
+let richie = new Client({name: "Richie", net: fakeNet});
 
 // Miners
 let minnie = new Miner({name: "Minnie", net: fakeNet});
@@ -32,6 +34,7 @@ let genesis = Blockchain.makeGenesis({
     [charlie, 67],
     [minnie, 400],
     [mickey, 300],
+    [richie, 1000]
   ]),
 });
 
@@ -46,13 +49,14 @@ function showBalances(client) {
   console.log(`Minnie has ${client.lastBlock.balanceOf(minnie.address)} gold.`);
   console.log(`Mickey has ${client.lastBlock.balanceOf(mickey.address)} gold.`);
   console.log(`Donald has ${client.lastBlock.balanceOf(donald.address)} gold.`);
+  console.log(`Richie has ${client.lastBlock.balanceOf(richie.address)} gold.`);
 }
 
 // Showing the initial balances from Alice's perspective, for no particular reason.
 console.log("Initial balances:");
 showBalances(alice);
 
-fakeNet.register(alice, bob, charlie, minnie, mickey);
+fakeNet.register(alice, bob, charlie, minnie, mickey, richie);
 
 // Miners start mining.
 minnie.initialize();
@@ -69,6 +73,16 @@ setTimeout(() => {
   fakeNet.register(donald);
   donald.initialize();
 }, 2000);
+
+const ray = [`${alice.address}`, `${bob.address}`, `${charlie.address}`];
+const array = [`alice`, `bob`, `charlie`];
+var transferLotto = function transferLotto() {
+  console.log(`LOTTO`)
+  let ran = Math.floor(Math.random() * 3)
+  console.log(`Richie is transferring ${LOTTO_REWARD} gold to ${array[ran]}`);
+  richie.postTransaction([{ amount: LOTTO_REWARD, address: ray[ran] }]);
+}
+module.exports.transferLotto = transferLotto;
 
 // Print out the final balances after it has been running for some time.
 setTimeout(() => {
