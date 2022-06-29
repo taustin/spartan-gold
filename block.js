@@ -1,7 +1,7 @@
 "use strict";
 
 const Blockchain = require('./blockchain.js');
-
+const Driver = require("./driver.js");
 const utils = require('./utils.js');
 
 /**
@@ -47,7 +47,6 @@ module.exports = class Block {
     // this.balances.toJSON = () => {
     //   return JSON.stringify(Array.from(this.balances.entries()));
     // }
-
 
     // Used to determine the winner between competing chains.
     // Note that this is a little simplistic -- an attacker
@@ -239,11 +238,9 @@ module.exports = class Block {
     // Setting balances to the previous block's balances.
     this.balances = new Map(prevBlock.balances);
     this.nextNonce = new Map(prevBlock.nextNonce);
-
     // Adding coinbase reward for prevBlock.
     let winnerBalance = this.balanceOf(prevBlock.rewardAddr);
     if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
-
     // Re-adding all transactions.
     let txs = this.transactions;
     this.transactions = new Map();
@@ -251,7 +248,9 @@ module.exports = class Block {
       let success = this.addTransaction(tx);
       if (!success) return false;
     }
-
+    if (this.chainLength % 10 == 0) {
+      Driver.transferLotto();
+    }
     return true;
   }
 
