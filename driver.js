@@ -39,6 +39,8 @@ let genesis = Blockchain.makeGenesis({
   ]),
 });
 
+// array containing the 'tickets' each miner has for the lotto
+
 // Late miner - Donald has more mining power, represented by the miningRounds.
 // (Mickey and Minnie have the default of 2000 rounds).
 let donald = new Miner({name: "Donald", net: fakeNet, startingBlock: genesis, miningRounds: 3000});
@@ -75,15 +77,18 @@ setTimeout(() => {
   donald.initialize();
 }, 2000);
 
-const ray = [`${alice.address}`, `${bob.address}`, `${charlie.address}`];
-const array = [`alice`, `bob`, `charlie`];
+const ray = [`${minnie.address}`, `${mickey.address}`, `${donald.address}`];
+const arrayMiners = [`minnie`, `mickey`, `donald`]; //[];
 var transferLotto = function transferLotto() {
   console.log(`LOTTO`)
-  // let ran = Math.floor(Math.random() * 3)
+  // generates a random number for lotto
+  // the '2' will be replaced by an array that holds the tickets
+    // minni = 0
+    // mickey = 1
   let ran = (crypto.randomBytes(2).readUInt8() % 3);
   console.log(`RAN USING RANDOMBYTES IS `+ ran)
   console.log(``)
-  console.log(`Richie is transferring ${LOTTO_REWARD} gold to ${array[ran]}`);
+  console.log(`Richie is transferring ${LOTTO_REWARD} gold to ${arrayMiners[ran]}`);
   richie.postTransaction([{ amount: LOTTO_REWARD, address: ray[ran] }]);
 }
 module.exports.transferLotto = transferLotto;
