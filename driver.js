@@ -1,4 +1,5 @@
 "use strict";
+const crypto = require('crypto')
 
 let Blockchain = require('./blockchain.js');
 let Block = require('./block.js');
@@ -78,7 +79,10 @@ const ray = [`${alice.address}`, `${bob.address}`, `${charlie.address}`];
 const array = [`alice`, `bob`, `charlie`];
 var transferLotto = function transferLotto() {
   console.log(`LOTTO`)
-  let ran = Math.floor(Math.random() * 3)
+  // let ran = Math.floor(Math.random() * 3)
+  let ran = (crypto.randomBytes(2).readUInt8() % 3);
+  console.log(`RAN USING RANDOMBYTES IS `+ ran)
+  console.log(``)
   console.log(`Richie is transferring ${LOTTO_REWARD} gold to ${array[ran]}`);
   richie.postTransaction([{ amount: LOTTO_REWARD, address: ray[ran] }]);
 }
