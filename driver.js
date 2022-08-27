@@ -1,5 +1,5 @@
 "use strict";
-const crypto = require('crypto')
+// const crypto = require('crypto')
 
 let Blockchain = require('./blockchain.js');
 let Block = require('./block.js');
@@ -9,7 +9,7 @@ let Transaction = require('./transaction.js');
 
 let FakeNet = require('./fake-net.js');
 
-const LOTTO_REWARD = 10;
+// const LOTTO_REWARD = 10;
 
 console.log("Starting simulation.  This may take a moment...");
 
@@ -77,15 +77,16 @@ setTimeout(() => {
   donald.initialize();
 }, 2000);
 
-const ray = [`${minnie.address}`, `${mickey.address}`, `${donald.address}`];
-const arrayMiners = [`minnie`, `mickey`, `donald`]; //[];
-var transferLotto = function transferLotto() {
+const ray = [`${minnie.address}`, `${mickey.address}`, `${charlie.address}`];
+// const arrayMiners = []; // [`minnie`, `mickey`, `donald`]; //
+var transferLotto = function transferLotto(arrayMiners) {
   console.log(`LOTTO`)
+  console.log(arrayMiners)
   // generates a random number for lotto
   // the '2' will be replaced by an array that holds the tickets
     // minni = 0
     // mickey = 1
-  let ran = (crypto.randomBytes(2).readUInt8() % 3);
+  let ran = (crypto.randomBytes(2).readUInt8() % arrayMiners.length);
   console.log(`RAN USING RANDOMBYTES IS `+ ran)
   console.log(``)
   console.log(`Richie is transferring ${LOTTO_REWARD} gold to ${arrayMiners[ran]}`);
@@ -117,4 +118,4 @@ setTimeout(() => {
   showBalances(donald);
 
   process.exit(0);
-}, 5000);
+}, 10000);

@@ -2,10 +2,14 @@
 
 let Blockchain = require('./blockchain.js');
 let Client = require('./client.js');
+const Driver = require("./driver.js");
 
+const arrayMiners = [];
 /**
  * Miners are clients, but they also mine blocks looking for "proofs".
  */
+
+
 module.exports = class Miner extends Client {
 
   /**
@@ -75,10 +79,17 @@ module.exports = class Miner extends Client {
    * 
    * @param {boolean} oneAndDone - Give up after the first PoW search (testing only).
    */
+
   findProof(oneAndDone=false) {
     let pausePoint = this.currentBlock.proof + this.miningRounds;
     while (this.currentBlock.proof < pausePoint) {
       if (this.currentBlock.hasValidProof()) {
+        // adding a ticket to the lotto for current miner
+        
+        arrayMiners[(this.currentBlock.chainLength % 10)-1] = this.name;
+        // if (this.currentBlock.chainLength % 10 ) {
+        //   Driver.transferLotto();
+        // }
         this.log(`found proof for block ${this.currentBlock.chainLength}: ${this.currentBlock.proof}`);
         this.announceProof();
         // Note: calling receiveBlock triggers a new search.
@@ -87,10 +98,15 @@ module.exports = class Miner extends Client {
       }
       this.currentBlock.proof++;
     }
+
     // If we are testing, don't continue the search.
     if (!oneAndDone) {
+
       // Check if anyone has found a block, and then return to mining.
       setTimeout(() => this.emit(Blockchain.START_MINING), 0);
+      // if (this.currentBlock.chainLength % 10 == 0) {
+      //   Driver.transferLotto(arrayMiners);
+      // }
     }
   }
 

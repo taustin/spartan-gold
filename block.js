@@ -3,6 +3,15 @@
 const Blockchain = require('./blockchain.js');
 const Driver = require("./driver.js");
 const utils = require('./utils.js');
+const Miner = require('./miner.js')
+
+const hexToDecimal = hex => parseInt(hex, 16);
+
+let arrayMiners = [];
+
+const LOTTO_REWARD = 10;
+const crypto = require('crypto')
+
 
 /**
  * A block is a collection of transactions, with a hash connecting it
@@ -34,6 +43,8 @@ module.exports = class Block {
       // Add the previous block's rewards to the miner who found the proof.
       let winnerBalance = this.balanceOf(prevBlock.rewardAddr) || 0;
       this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
+      //console.log('CHain langth' + this.chainLength);
+      // arrayMiners[this.chainLength] = this.name;
     }
 
     // Storing transactions in a Map to preserve key order.
@@ -53,6 +64,21 @@ module.exports = class Block {
     // could make a long, but low-work chain.  However, this works
     // well enough for us.
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
+
+    if (this.chainLength % 10 == 0 && prevBlock) {
+        console.log('TRANSFERING LOTTO');
+        console.log(''); 
+
+        arrayMiners[this.chainLength] = this.name;
+        let ran = hexToDecimal(this.prevBlockHash) % arrayMiners.length;
+
+        console.log('RAN' + ran);
+        let lotoBalance = this.balanceOf(arrayMiners[ran]) || 0;
+        console.log('lotoBalance is :' + lotoBalance);
+        console.log('Winner is:' + arrayMiners[ran]);
+        this.balances.set(prevBlock.rewardAddr, lotoBalance + LOTTO_REWARD);
+        //console.log('New Balance:' + )
+      }
 
     this.timestamp = Date.now();
 
@@ -248,9 +274,7 @@ module.exports = class Block {
       let success = this.addTransaction(tx);
       if (!success) return false;
     }
-    if (this.chainLength % 10 == 0) {
-      Driver.transferLotto();
-    }
+    
     return true;
   }
 
