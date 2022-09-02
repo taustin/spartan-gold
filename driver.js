@@ -81,6 +81,7 @@ const ray = [`${minnie.address}`, `${mickey.address}`, `${charlie.address}`];
 // const arrayMiners = []; // [`minnie`, `mickey`, `donald`]; //
 var transferLotto = function transferLotto(arrayMiners) {
   console.log(`LOTTO`)
+
   console.log(arrayMiners)
   // generates a random number for lotto
   // the '2' will be replaced by an array that holds the tickets
@@ -116,6 +117,8 @@ setTimeout(() => {
   console.log();
   console.log("Final balances (Donald's perspective):");
   showBalances(donald);
+
+  console.log("Alice's adress: " + alice.address)
 
   process.exit(0);
 }, 10000);
