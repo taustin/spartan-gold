@@ -68,21 +68,7 @@ module.exports = class Block {
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
 
     if (this.chainLength % 10 == 0 && prevBlock) {
-        console.log('TRANSFERING LOTTO');
-        console.log(''); 
-
-        //lo[this.chainLength] = this.client;
-        console.log('THIS LOTTONAME:' + lottoName);
-        console.log(''); 
-        console.log(''); 
-        let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
-
-        console.log('RAN' + ran);
-        let lottoWinnerBalance = this.balanceOf(lottoName[ran]) || 0;
-        console.log('lotoBalance is :' + lottoWinnerBalance);
-        console.log('Winner is:' + lottoName[ran]);
-        this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
-        console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
+        this.callLotto();
 
         //console.log('New Balance:' + )
       }
@@ -284,25 +270,8 @@ module.exports = class Block {
     }
 
     if (this.chainLength % 10 == 0 && prevBlock) {
-        console.log('TRANSFERING LOTTO');
-        console.log(''); 
-
-        //lo[this.chainLength] = this.client;
-        console.log('THIS LOTTONAME:' + lottoName);
-        console.log(''); 
-        console.log(''); 
-        let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
-
-        console.log('RAN' + ran);
-        let lottoWinnerBalance = this.balanceOf(lottoName[ran]) || 0;
-        console.log('lotoBalance is :' + lottoWinnerBalance);
-        console.log('Winner is:' + lottoName[ran]);
-        this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
-        console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
-        
-        //console.log('New Balance:' + )
-      }
-    
+      this.callLotto();
+    }
     return true;
   }
 
@@ -332,6 +301,26 @@ module.exports = class Block {
     return [...this.transactions].reduce(
       (reward, [, tx]) => reward + tx.fee,
       this.coinbaseReward);
+  }
+
+  callLotto() {
+        console.log('TRANSFERING LOTTO');
+        console.log(''); 
+
+        //lo[this.chainLength] = this.client;
+        console.log('THIS LOTTONAME:' + lottoName);
+        console.log(''); 
+        console.log(''); 
+        let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
+
+        console.log('RAN' + ran);
+        let lottoWinnerBalance = this.balanceOf(lottoName[ran]) || 0;
+        console.log('lotoBalance is :' + lottoWinnerBalance);
+        console.log('Winner is:' + lottoName[ran]);
+        this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
+        console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
+
+        //console.log('New Balance:' + )
   }
 
   /**
