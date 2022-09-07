@@ -11,7 +11,7 @@ let arrayMiners = [];
 
 const LOTTO_REWARD = 10;
 const crypto = require('crypto')
-let lottoName = [];
+const lottoName = [];
 
 
 /**
@@ -78,11 +78,10 @@ module.exports = class Block {
         let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
 
         console.log('RAN' + ran);
-        console.log('BLock NUm' + this.chainLength)
         let lottoWinnerBalance = this.balanceOf(lottoName[ran]) || 0;
         console.log('lotoBalance is :' + lottoWinnerBalance);
         console.log('Winner is:' + lottoName[ran]);
-        this.balances.set(lottoName[ran], (lottoWinnerBalance + 10));
+        this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
         console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
 
         //console.log('New Balance:' + )
@@ -283,7 +282,7 @@ module.exports = class Block {
       let success = this.addTransaction(tx);
       if (!success) return false;
     }
-    
+
     if (this.chainLength % 10 == 0 && prevBlock) {
         console.log('TRANSFERING LOTTO');
         console.log(''); 
@@ -295,15 +294,15 @@ module.exports = class Block {
         let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
 
         console.log('RAN' + ran);
-        console.log('BLock NUm' + this.chainLength)
         let lottoWinnerBalance = this.balanceOf(lottoName[ran]) || 0;
         console.log('lotoBalance is :' + lottoWinnerBalance);
         console.log('Winner is:' + lottoName[ran]);
-        this.balances.set(lottoName[ran], (lottoWinnerBalance + 10));
+        this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
         console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
-
+        
         //console.log('New Balance:' + )
       }
+    
     return true;
   }
 
