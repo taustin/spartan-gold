@@ -6,6 +6,8 @@ let Blockchain = require('./blockchain.js');
 
 let utils = require('./utils.js');
 
+let lottoName = [];
+
 /**
  * A client has a public/private keypair and an address.
  * It can send and receive messages on the Blockchain network.
@@ -125,9 +127,17 @@ module.exports = class Client extends EventEmitter {
    * 
    * @returns {Transaction} - The posted transaction.
    */
-  postTransaction(outputs, fee=Blockchain.DEFAULT_TX_FEE) {
+  postTransaction(outputs) {
     // We calculate the total value of gold needed.
+    console.log("AMOUNT:" + outputs.reduce((acc, {fee}) => acc + fee, 0))
+    let fee = outputs.reduce((acc, {fee}) => acc + fee, 0);
     let totalPayments = outputs.reduce((acc, {amount}) => acc + amount, 0) + fee;
+    // lottoName[lottoName.length] = this.address;
+    // for (var i = 0; i < fee; i++) {
+    //   lottoName[lottoName.length] = lottoName[lottoName.length-1];
+    //   console.log("NEW LOTTO NAME: " + lottoName)
+    //   console.log('')
+    // }
 
     // Make sure the client has enough gold.
     if (totalPayments > this.availableGold) {
