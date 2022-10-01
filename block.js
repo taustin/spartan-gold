@@ -4,6 +4,7 @@ const Blockchain = require('./blockchain.js');
 const Driver = require("./driver.js");
 const utils = require('./utils.js');
 const Miner = require('./miner.js')
+const Client = require('./client.js')
 
 const hexToDecimal = hex => parseInt(hex, 16);
 
@@ -11,7 +12,8 @@ let arrayMiners = [];
 
 const LOTTO_REWARD = 10;
 const crypto = require('crypto')
-const lottoName = [];
+ const lottoName = [];
+// let lottoName = Client.lottoName;
 
 
 /**
@@ -43,7 +45,8 @@ module.exports = class Block {
     if (prevBlock && prevBlock.rewardAddr) {
       // Add the previous block's rewards to the miner who found the proof.
       let winnerBalance = this.balanceOf(prevBlock.rewardAddr) || 0;
-      this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
+      let rewardsT = prevBlock.totalRewards();
+      this.balances.set(prevBlock.rewardAddr, winnerBalance + rewardsT);
       //console.log('CHain langth' + this.chainLength);
       // arrayMiners[this.chainLength] = this.name;
     }
@@ -67,8 +70,9 @@ module.exports = class Block {
     // well enough for us.
     this.chainLength = prevBlock ? prevBlock.chainLength+1 : 0;
 
+  // checks to see what the block length is, then calls the lottery if the chain length is 10
     if (this.chainLength % 10 == 0 && prevBlock) {
-        this.callLotto();
+        this.callLotto(); // calls lottery
 
         //console.log('New Balance:' + )
       }
@@ -237,8 +241,17 @@ module.exports = class Block {
       let oldBalance = this.balanceOf(address);
       this.balances.set(address, amount + oldBalance);
     });
+    // for (var i = 0; i < amounts; i++) {
+    //   lottoName[lottoName.length] = tx.from;
+    // }
 
     lottoName[lottoName.length] = tx.from;
+    console.log("TX.FEE: " + (this.totalRewards()-25))
+      console.log('')
+      console.log('')
+    for (var i = 0; i < this.totalRewards()-25; i++) {
+      lottoName[lottoName.length] = lottoName[lottoName.length-1];
+    }
 
     return true;
   }
@@ -260,7 +273,8 @@ module.exports = class Block {
     this.nextNonce = new Map(prevBlock.nextNonce);
     // Adding coinbase reward for prevBlock.
     let winnerBalance = this.balanceOf(prevBlock.rewardAddr);
-    if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + prevBlock.totalRewards());
+    let rewardsT = prevBlock.totalRewards()
+    if (prevBlock.rewardAddr) this.balances.set(prevBlock.rewardAddr, winnerBalance + rewardsT);
     // Re-adding all transactions.
     let txs = this.transactions;
     this.transactions = new Map();
@@ -269,6 +283,7 @@ module.exports = class Block {
       if (!success) return false;
     }
 
+    // checks to see what the block length is, then calls the lottery if the chain length is 10
     if (this.chainLength % 10 == 0 && prevBlock) {
       this.callLotto();
     }
@@ -303,14 +318,15 @@ module.exports = class Block {
       this.coinbaseReward);
   }
 
+  /**
+    * calls the lottery --> uses blockhash to generrate a random number (lottery ticket),
+    * then adds the lottery money to the winner's account
+  */
   callLotto() {
         console.log('TRANSFERING LOTTO');
         console.log(''); 
 
         //lo[this.chainLength] = this.client;
-        console.log('THIS LOTTONAME:' + lottoName);
-        console.log(''); 
-        console.log(''); 
         let ran = hexToDecimal(this.prevBlockHash) % lottoName.length;
 
         console.log('RAN' + ran);
@@ -319,6 +335,7 @@ module.exports = class Block {
         console.log('Winner is:' + lottoName[ran]);
         this.balances.set(lottoName[ran], (lottoWinnerBalance + LOTTO_REWARD));
         console.log('NEW BALACE: ' + this.balanceOf(lottoName[ran]));
+        //lottoName = 0;
 
         //console.log('New Balance:' + )
   }

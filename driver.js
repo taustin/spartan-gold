@@ -30,8 +30,8 @@ let genesis = Blockchain.makeGenesis({
   blockClass: Block,
   transactionClass: Transaction,
   clientBalanceMap: new Map([
-    [alice, 233],
-    [bob, 99],
+    [alice, 140],
+    [bob, 230],
     [charlie, 67],
     [minnie, 400],
     [mickey, 300],
@@ -57,6 +57,7 @@ function showBalances(client) {
 
 // Showing the initial balances from Alice's perspective, for no particular reason.
 console.log("Initial balances:");
+
 showBalances(alice);
 
 fakeNet.register(alice, bob, charlie, minnie, mickey, richie);
@@ -66,8 +67,12 @@ minnie.initialize();
 mickey.initialize();
 
 // Alice transfers some money to Bob.
-console.log(`Alice is transferring 40 gold to ${bob.address}`);
-alice.postTransaction([{ amount: 40, address: bob.address }]);
+console.log(`Bob is transferring 40 gold to ${richie.address}`);
+bob.postTransaction([{ fee: 1, amount: 30, address: richie.address }]);
+
+alice.postTransaction([{ fee: 2, amount: 40, address: richie.address }]);
+
+// bob.postTransaction([{ amount: 40, address: alice.address }]);
 
 setTimeout(() => {
   console.log();
@@ -102,6 +107,7 @@ setTimeout(() => {
   showBalances(donald);
 
   console.log("Alice's adress: " + alice.address)
+  console.log("Bob's adress: " + bob.address)
 
   process.exit(0);
 }, 10000);
