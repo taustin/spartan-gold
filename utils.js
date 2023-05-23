@@ -52,3 +52,10 @@ exports.calcAddress = function(key) {
 exports.addressMatchesKey = function(addr, pubKey) {
   return addr === exports.calcAddress(pubKey);
 };
+
+exports.hashContract = function hashContract(file, encoding) {
+  encoding = encoding || 'hex';
+  const normalizedFile = file.replace(/\s+/g, ' ').trim();
+
+  return crypto.createHash(HASH_ALG).update(normalizedFile).digest(encoding);
+};

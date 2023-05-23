@@ -1,0 +1,6 @@
+(provide counter)
+(defineState val)
+(define counter (lambda ()
+        (set! val (+ val 1))
+        (+ 4 5)
+    ))
