@@ -18,7 +18,7 @@ let addr = utils.calcAddress(kp.public);
 const EASY_POW_TARGET = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 // Setting blockchain configuration.  (Usually this would be done during the creation of the genesis block.)
-Blockchain.makeGenesis({ blockClass: Block, transactionClass: Transaction });
+Blockchain.createInstance({ blockClass: Block, transactionClass: Transaction });
 
 describe('utils', () => {
   describe('.verifySignature', () => {
