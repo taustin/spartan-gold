@@ -171,7 +171,7 @@ module.exports = class Blockchain {
    */
   static createInstance(cfg) {
     this.instance = new Blockchain(cfg);
-    this.makeGenesis();
+    this.instance.genesis = this.makeGenesis();
     return this.instance;
   }
 
@@ -192,7 +192,7 @@ module.exports = class Blockchain {
     defaultTxFee = DEFAULT_TX_FEE,
     confirmedDepth = CONFIRMED_DEPTH,
     clients = [],
-    fakeNet,
+    net,
   }) {
 
     if (this.constructor.instance) {
@@ -201,8 +201,9 @@ module.exports = class Blockchain {
 
     this.clients = [];
     this.miners = [];
+    this.clientAddressMap = new Map();
     this.clientNameMap = new Map();
-    this.fakeNet = fakeNet;
+    this.net = net;
 
     this.powLeadingZeroes = powLeadingZeroes;
     this.coinbaseReward = coinbaseReward;
@@ -219,7 +220,7 @@ module.exports = class Blockchain {
       if (clientCfg.mining) {
         client = new minerClass({
           name: clientCfg.name,
-          net: this.fakeNet,
+          net: this.net,
           miningRounds: clientCfg.miningRounds,
         });
         // Miners are stored as both miners and clients.
@@ -227,13 +228,15 @@ module.exports = class Blockchain {
       } else {
         client = new clientClass({
           name: clientCfg.name,
-          net: this.fakeNet,
+          net: this.net,
         });
       }
 
+      this.clientAddressMap.set(client.address, client);
       if (client.name) this.clientNameMap.set(client.name, client);
       this.clients.push(client);
-      this.fakeNet.register(client);
+      this.net.register(client);
+
       this.initialBalances.set(client.address, clientCfg.amount);
     });
 
@@ -312,5 +315,22 @@ module.exports = class Blockchain {
       clients.push(this.clientNameMap.get(clientName));
     });
     return clients;
+  }
+
+  register(...clients) {
+    clients.forEach((client) => {
+      this.clientAddressMap.set(client.address, client);
+      if (client.name) this.clientNameMap.set(client.name, client);
+      client.net = this.net;
+      this.net.register(client);
+    });
+  }
+
+  getClientName(address) {
+    if (!this.clientAddressMap.has(address)) {
+      return;
+    }
+    let client = this.clientAddressMap.get(address);
+    return client.name;
   }
 };

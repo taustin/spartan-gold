@@ -319,9 +319,15 @@ module.exports = class Client extends EventEmitter {
    * according to the client's own perspective of the network.
    */
   showAllBalances() {
+    let bc = Blockchain.getInstance();
     this.log("Showing balances:");
     for (let [id,balance] of this.lastConfirmedBlock.balances) {
-      console.log(`    ${id}: ${balance}`);
+      let name = bc.getClientName(id);
+      if (name) {
+        console.log(`    ${id} (${name}): ${balance}`);
+      } else {
+        console.log(`    ${id}: ${balance}`);
+      }
     }
   }
  
