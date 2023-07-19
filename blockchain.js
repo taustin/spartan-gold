@@ -199,6 +199,28 @@ module.exports = class Blockchain {
       throw new Error("The blockchain has already been initialized.");
     }
 
+    // Storing details on classes.
+    if (blockClass) {
+      this.blockClass = blockClass;
+    } else {
+      this.blockClass = require('./block');
+    }
+    if (transactionClass) {
+      this.transactionClass = transactionClass;
+    } else {
+      this.transactionClass = require('./transaction');
+    }
+    if (clientClass) {
+      this.clientClass = clientClass;
+    } else {
+      this.clientClass = require('./client');
+    }
+    if (minerClass) {
+      this.minerClass = minerClass;
+    } else {
+      this.minerClass = require('./miner');
+    }
+
     this.clients = [];
     this.miners = [];
     this.clientAddressMap = new Map();
@@ -218,7 +240,7 @@ module.exports = class Blockchain {
       console.log(`Adding client ${clientCfg.name}`);
       let client;
       if (clientCfg.mining) {
-        client = new minerClass({
+        client = new this.minerClass({
           name: clientCfg.name,
           net: this.net,
           miningRounds: clientCfg.miningRounds,
@@ -226,7 +248,7 @@ module.exports = class Blockchain {
         // Miners are stored as both miners and clients.
         this.miners.push(client);
       } else {
-        client = new clientClass({
+        client = new this.clientClass({
           name: clientCfg.name,
           net: this.net,
         });
@@ -240,9 +262,6 @@ module.exports = class Blockchain {
       this.initialBalances.set(client.address, clientCfg.amount);
     });
 
-    // Storing details on classes.
-    this.blockClass = blockClass;
-    this.transactionClass = transactionClass;
   }
 
   /**

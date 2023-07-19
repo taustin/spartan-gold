@@ -2,11 +2,8 @@
 
 let Blockchain = require('./blockchain.js');
 
-// FIXME: Figure out how to remove these imports
-let Block = require('./block.js');
-let Client = require('./client.js');
+// Used to create a miner outside of the blockchain constructor.
 let Miner = require('./miner.js');
-let Transaction = require('./transaction.js');
 
 let FakeNet = require('./fake-net.js');
 
@@ -14,10 +11,6 @@ console.log("Starting simulation.  This may take a moment...");
 
 // Creating genesis block
 let bc = Blockchain.createInstance({
-  blockClass: Block,
-  clientClass: Client,
-  minerClass: Miner,
-  transactionClass: Transaction,
   clients: [
     {name: 'Alice', amount: 233},
     {name: 'Bob', amount: 99},
