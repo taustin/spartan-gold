@@ -256,6 +256,7 @@ module.exports = class Blockchain {
 
       this.clientAddressMap.set(client.address, client);
       if (client.name) this.clientNameMap.set(client.name, client);
+
       this.clients.push(client);
       this.net.register(client);
 
@@ -340,6 +341,12 @@ module.exports = class Blockchain {
     clients.forEach((client) => {
       this.clientAddressMap.set(client.address, client);
       if (client.name) this.clientNameMap.set(client.name, client);
+
+      // Add client to the list of clients and (if a miner) the list of miners.
+      this.clients.push(client);
+      if (client instanceof this.minerClass) this.miners.push(client);
+
+      // Set the "network" connection for the client.
       client.net = this.net;
       this.net.register(client);
     });
