@@ -15,16 +15,17 @@ module.exports = class Miner extends Client {
    * @constructor
    * @param {Object} obj - The properties of the client.
    * @param {String} [obj.name] - The miner's name, used for debugging messages.
-   * * @param {Object} net - The network that the miner will use
+   * @param {Object} net - The network that the miner will use
    *      to send messages to all other clients.
+   * @param {String} [obj.password] - The client's password, used for generating address.
    * @param {Block} [startingBlock] - The most recently ALREADY ACCEPTED block.
    * @param {Object} [obj.keyPair] - The public private keypair for the client.
    * @param {Number} [miningRounds] - The number of rounds a miner mines before checking
    *      for messages.  (In single-threaded mode with FakeNet, this parameter can
    *      simulate miners with more or less mining power.)
    */
-  constructor({name, net, startingBlock, keyPair, miningRounds=Blockchain.NUM_ROUNDS_MINING} = {}) {
-    super({name, net, startingBlock, keyPair});
+  constructor({name, password, net, startingBlock, keyPair, miningRounds=Blockchain.NUM_ROUNDS_MINING} = {}) {
+    super({name, password, net, startingBlock, keyPair});
     this.miningRounds=miningRounds;
 
     // Set of transactions to be added to the next block.
