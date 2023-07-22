@@ -12,12 +12,13 @@ console.log("Starting simulation.  This may take a moment...");
 // Creating genesis block
 let bc = Blockchain.createInstance({
   clients: [
-    {name: 'Alice', amount: 233},
-    {name: 'Bob', amount: 99},
-    {name: 'Charlie', amount: 67},
+    {name: 'Alice', amount: 233, password: 'alice_pswd'},
+    {name: 'Bob', amount: 99, password: 'bob_pswd'},
+    {name: 'Charlie', amount: 67, password: 'charlie_pswd'},
     {name: 'Minnie', amount: 400, mining: true},
     {name: 'Mickey', amount: 300, mining: true},
   ],
+  mnemonic: "antenna dwarf settle sleep must wool ocean once banana tiger distance gate great similar chief cheap dinner dolphin picture swing twenty two file nuclear",
   net: new FakeNet(),
 });
 
@@ -54,5 +55,4 @@ setTimeout(() => {
   bc.register(donald);
   donald.initialize();
 }, 2000);
-
 
