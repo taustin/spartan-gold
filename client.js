@@ -363,7 +363,7 @@ module.exports = class Client extends EventEmitter {
    * @param {String} mnemonic - mnemonic set for the blockchain instance
    */
   generateAddress(mnemonic){
-    if (mnemonic == undefined){
+    if (mnemonic === undefined){
       throw new Error(`mnemonic not set`);
     }
     this.keyPair = utils.generateKeypairFromMnemonic(mnemonic, this.password);
