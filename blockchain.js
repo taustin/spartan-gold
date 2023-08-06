@@ -156,7 +156,7 @@ module.exports = class Blockchain {
    * 
    * @returns {Blockchain}
    */
-  static isInstance() {
+  static hasInstance() {
     return (this.instance ? true : false);
   }
 
@@ -274,7 +274,6 @@ module.exports = class Blockchain {
           name: clientCfg.name,
           password: clientCfg.password ? clientCfg.password : clientCfg.name+'_pswd',
           net: this.net,
-          //mnemonic: mnemonic,
         });
         client.generateAddress(this.mnemonic);
       }

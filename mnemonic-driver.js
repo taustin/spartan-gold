@@ -2,6 +2,10 @@
 
 let Blockchain = require('./blockchain.js');
 
+// Used to create a client outside of the blockchain constructor.
+let Client = require('./client.js');
+
+
 // Used to create a miner outside of the blockchain constructor.
 let Miner = require('./miner.js');
 
@@ -12,15 +16,19 @@ console.log("Starting simulation.  This may take a moment...");
 // Creating genesis block
 let bc = Blockchain.createInstance({
   clients: [
-    {name: 'Alice', amount: 233},
-    {name: 'Bob', amount: 99},
-    {name: 'Charlie', amount: 67},
+    {name: 'Alice', amount: 233, password: 'alice_pswd'},
+    {name: 'Bob', amount: 99, password: 'bob_pswd'},
+    {name: 'Charlie', amount: 67, password: 'charlie_pswd'},
     {name: 'Minnie', amount: 400, mining: true},
     {name: 'Mickey', amount: 300, mining: true},
   ],
   mnemonic: "antenna dwarf settle sleep must wool ocean once banana tiger distance gate great similar chief cheap dinner dolphin picture swing twenty two file nuclear",
   net: new FakeNet(),
 });
+
+// Late client - to demnonstrate that clients can be initialized after blockchain initialization
+let trudy = new Client({name: 'Trudy', startingBlock: bc.genesis});
+bc.register(trudy);
 
 // Get Alice and Bob
 let [alice, bob] = bc.getClients('Alice', 'Bob');
@@ -39,6 +47,11 @@ bc.start(8000, () => {
 // Alice transfers some money to Bob.
 console.log(`Alice is transferring 40 gold to ${bob.address}`);
 alice.postTransaction([{ amount: 40, address: bob.address }]);
+
+// Alice transfers some money to Bob.
+console.log(`Alice is transferring 20 gold to ${trudy.address}`);
+alice.postTransaction([{ amount: 20, address: trudy.address }]);
+
 
 setTimeout(() => {
   // Late miner - Donald has more mining power, represented by the miningRounds.

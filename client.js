@@ -35,7 +35,7 @@ module.exports = class Client extends EventEmitter {
     this.password = password ? password : this.name+"_pswd";
 
 
-    if (Blockchain.isInstance()){
+    if (Blockchain.hasInstance()){
        let bc = Blockchain.getInstance();
        this.generateAddress(bc.mnemonic);
     }
