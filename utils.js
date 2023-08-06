@@ -16,9 +16,10 @@ exports.hash = function hash(s, encoding) {
 };
 
 /**
+ * Generates keypair from mnemonic and password
  * 
- * @param {String} mnemonic 
- * @param {String} password 
+ * @param {String} mnemonic - associated with the blockchain instance
+ * @param {String} password - unique to each user
  * @returns 
  */
 //https://stackoverflow.com/questions/72047474/how-to-generate-safe-rsa-keys-deterministically-using-a-seed
