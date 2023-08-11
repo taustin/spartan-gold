@@ -26,7 +26,7 @@ let bc = Blockchain.createInstance({
   net: new FakeNet(),
 });
 
-// Late client - to demnonstrate that clients can be initialized after blockchain initialization
+// Late client - to demonstrate that clients can be initialized after blockchain initialization
 let trudy = new Client({name: 'Trudy', startingBlock: bc.genesis});
 bc.register(trudy);
 
@@ -37,7 +37,7 @@ let [alice, bob] = bc.getClients('Alice', 'Bob');
 console.log("Initial balances:");
 alice.showAllBalances();
 
-// The miners will start mining blocks when start is called.  After 5 seconds,
+// The miners will start mining blocks when start is called.  After 8 seconds,
 // the code will terminate and show the final balances from Alice's perspective.
 bc.start(8000, () => {
   console.log("Final balances, from Alice's perspective:");

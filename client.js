@@ -26,7 +26,7 @@ module.exports = class Client extends EventEmitter {
    * @param {Block} [obj.startingBlock] - The starting point of the blockchain for the client.
    * @param {Object} [obj.keyPair] - The public private keypair for the client.
    */
-  constructor({name, password, net, startingBlock, keyPair} = {}) {
+  constructor({name, password, net, startingBlock} = {}) {
     super();
 
     this.net = net;
