@@ -247,6 +247,7 @@ module.exports = class Blockchain {
 
     this.initialBalances = new Map();
 
+    // generate random mnemonic if mnemonic not passed
     if (mnemonic === undefined){
       const { generateMnemonic } = require('bip39');
       this.mnemonic = generateMnemonic(256);
@@ -264,7 +265,6 @@ module.exports = class Blockchain {
           password: clientCfg.password ? clientCfg.password : clientCfg.name+'_pswd',
           net: this.net,
           miningRounds: clientCfg.miningRounds,
-          //mnemonic: mnemonic,
         });
         client.generateAddress(this.mnemonic);
         // Miners are stored as both miners and clients.

@@ -29,7 +29,7 @@ let [alice, bob] = bc.getClients('Alice', 'Bob');
 console.log("Initial balances:");
 alice.showAllBalances();
 
-// The miners will start mining blocks when start is called.  After 5 seconds,
+// The miners will start mining blocks when start is called.  After 8 seconds,
 // the code will terminate and show the final balances from Alice's perspective.
 bc.start(8000, () => {
   console.log("Final balances, from Alice's perspective:");
