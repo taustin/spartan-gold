@@ -152,6 +152,15 @@ module.exports = class Blockchain {
   }
 
   /**
+   * Check if Blockchain instance exists
+   * 
+   * @returns {Blockchain}
+   */
+  static hasInstance() {
+    return (this.instance ? true : false);
+  }
+
+  /**
    * Creates the new instance of the blockchain configuration, giving the
    * clients the amount of starting gold specified in the clients array.
    * This will also create the genesis block, but will not start mining.
@@ -160,6 +169,7 @@ module.exports = class Blockchain {
    * @param {Class} cfg.blockClass - Implementation of the Block class.
    * @param {Class} cfg.transactionClass - Implementation of the Transaction class.
    * @param {Array} [cfg.clients] - An array of client/miner configurations.
+   * @param {String} [cfg.mnemonic] - BIP39 mnemonic which is used to generate client addresses.
    * @param {number} [cfg.powLeadingZeroes] - Number of leading zeroes required for a valid proof-of-work.
    * @param {number} [cfg.coinbaseAmount] - Amount of gold awarded to a miner for creating a block.
    * @param {number} [cfg.defaultTxFee] - Amount of gold awarded to a miner for accepting a transaction,
@@ -192,6 +202,7 @@ module.exports = class Blockchain {
     defaultTxFee = DEFAULT_TX_FEE,
     confirmedDepth = CONFIRMED_DEPTH,
     clients = [],
+    mnemonic,
     net,
   }) {
 
@@ -236,22 +247,35 @@ module.exports = class Blockchain {
 
     this.initialBalances = new Map();
 
+    // generate random mnemonic if mnemonic not passed
+    if (mnemonic === undefined){
+      const { generateMnemonic } = require('bip39');
+      this.mnemonic = generateMnemonic(256);
+    }
+    else{
+      this.mnemonic = mnemonic;
+    }
+
     clients.forEach((clientCfg) => {
       console.log(`Adding client ${clientCfg.name}`);
       let client;
       if (clientCfg.mining) {
         client = new this.minerClass({
           name: clientCfg.name,
+          password: clientCfg.password ? clientCfg.password : clientCfg.name+'_pswd',
           net: this.net,
           miningRounds: clientCfg.miningRounds,
         });
+        client.generateAddress(this.mnemonic);
         // Miners are stored as both miners and clients.
         this.miners.push(client);
       } else {
         client = new this.clientClass({
           name: clientCfg.name,
+          password: clientCfg.password ? clientCfg.password : clientCfg.name+'_pswd',
           net: this.net,
         });
+        client.generateAddress(this.mnemonic);
       }
 
       this.clientAddressMap.set(client.address, client);

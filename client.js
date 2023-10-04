@@ -20,24 +20,25 @@ module.exports = class Client extends EventEmitter {
    * @constructor
    * @param {Object} obj - The properties of the client.
    * @param {String} [obj.name] - The client's name, used for debugging messages.
+   * @param {String} [obj.password] - The client's password, used for generating address.
    * @param {Object} obj.net - The network used by the client
    *    to send messages to all miners and clients.
    * @param {Block} [obj.startingBlock] - The starting point of the blockchain for the client.
    * @param {Object} [obj.keyPair] - The public private keypair for the client.
    */
-  constructor({name, net, startingBlock, keyPair} = {}) {
+  constructor({name, password, net, startingBlock} = {}) {
     super();
 
     this.net = net;
     this.name = name;
 
-    if (keyPair === undefined) {
-      this.keyPair = utils.generateKeypair();
-    } else {
-      this.keyPair = keyPair;
-    }
+    this.password = password ? password : this.name+"_pswd";
 
-    this.address = utils.calcAddress(this.keyPair.public);
+
+    if (Blockchain.hasInstance()){
+       let bc = Blockchain.getInstance();
+       this.generateAddress(bc.mnemonic);
+    }
 
     // Establishes order of transactions.  Incremented with each
     // new output transaction from this client.  This feature
@@ -355,4 +356,19 @@ module.exports = class Client extends EventEmitter {
       block = this.blocks.get(block.prevBlockHash);
     }
   }
+
+  /**
+   * Generate client address using mnemonic set for the blockchain
+   * 
+   * @param {String} mnemonic - mnemonic set for the blockchain instance
+   */
+  generateAddress(mnemonic){
+    if (mnemonic === undefined){
+      throw new Error(`mnemonic not set`);
+    }
+    this.keyPair = utils.generateKeypairFromMnemonic(mnemonic, this.password);
+    this.address = utils.calcAddress(this.keyPair.public);
+    console.log(`${this.name}'s address is: ${this.address}`);
+  }
+
 };

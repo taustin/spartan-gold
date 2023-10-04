@@ -2,6 +2,10 @@
 
 let crypto = require('crypto');
 
+const { mnemonicToSeedSync } = require('bip39');
+const { pki, random } = require('node-forge');
+
+
 // CRYPTO settings
 const HASH_ALG = 'sha256';
 const SIG_ALG = 'RSA-SHA256';
@@ -10,6 +14,26 @@ exports.hash = function hash(s, encoding) {
   encoding = encoding || 'hex';
   return crypto.createHash(HASH_ALG).update(s).digest(encoding);
 };
+
+/**
+ * Generates keypair from mnemonic and password
+ * 
+ * @param {String} mnemonic - associated with the blockchain instance
+ * @param {String} password - unique to each user
+ * @returns 
+ */
+//https://stackoverflow.com/questions/72047474/how-to-generate-safe-rsa-keys-deterministically-using-a-seed
+exports.generateKeypairFromMnemonic = function( mnemonic, password ) {
+  const seed = mnemonicToSeedSync(mnemonic, password).toString('hex');
+  const prng = random.createInstance();
+  prng.seedFileSync = () => seed;
+  const { privateKey, publicKey } = pki.rsa.generateKeyPair({ bits: 512, prng, workers: 2 });
+  return {
+      public: pki.publicKeyToPem(publicKey),
+      private: pki.privateKeyToPem(privateKey),
+  };
+};
+
 
 exports.generateKeypair = function() {
   const kp = crypto.generateKeyPairSync('rsa', {
